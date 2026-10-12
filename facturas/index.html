@@ -136,6 +136,10 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
 .row .side{text-align:right;display:grid;gap:2px;justify-items:end}
 .row.cur b::after{content:" (abierta)";font-weight:400;color:var(--muted);font-size:13px}
 .empty{color:var(--muted);padding:24px 0;text-align:center}
+.bk{padding:12px 16px 16px;border-top:1px solid var(--line)}
+.bk p{margin:0 0 10px;color:var(--muted);font-size:13px}
+.bk-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bk-btns .btn{padding:0 10px}
 
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;z-index:80;background:var(--inv-bg);color:var(--inv-ink);padding:10px 16px;border-radius:999px;font-size:14px;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
@@ -238,6 +242,13 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
     </div>
     <div class="search"><input id="search" type="search" placeholder="Buscar por cliente, pedido o # de cliente" aria-label="Buscar factura"></div>
     <div class="list" id="list"></div>
+    <div class="bk">
+      <p>Respaldo: guarda todas tus facturas en un archivo, o carga uno para pasarlas a otro aparato.</p>
+      <div class="bk-btns">
+        <button type="button" class="btn ghost" id="bkExport">Guardar respaldo</button>
+        <label class="btn ghost">Cargar respaldo<input type="file" class="sr" id="bkImport" accept=".json,application/json"></label>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -779,6 +790,33 @@ $('#btnNueva').addEventListener('click',()=>{
   cur=newInvoice(); dirty=false; lastBlob=null; renderAll(); window.scrollTo(0,0);
   setSave('','Nueva factura sin guardar');
   const c=$('[data-f="cliente"]'); if(c) c.focus({preventScroll:true});
+});
+
+/* ---------- respaldo ---------- */
+$('#bkExport').addEventListener('click',async()=>{
+  saveNow(true); await q;
+  const out={app:'facturas',version:1,exportado:new Date().toISOString(),facturas:Object.values(lsRead())};
+  const file=new File([JSON.stringify(out)],'Respaldo-Facturas-'+todayISO()+'.json',{type:'application/json'});
+  const msg='Respaldo listo: '+(out.facturas.length===1?'1 factura':out.facturas.length+' facturas');
+  try{ if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); toast(msg); return; } }
+  catch(e){ if(e&&e.name==='AbortError') return; }
+  try{
+    const u=URL.createObjectURL(file), a=document.createElement('a');
+    a.href=u; a.download=file.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),4000); toast(msg);
+  }catch(e){ toast('No se pudo crear el respaldo'); }
+});
+$('#bkImport').addEventListener('change',async e=>{
+  const file=e.target.files&&e.target.files[0]; e.target.value=''; if(!file) return;
+  let data; try{ data=JSON.parse(await file.text()); }catch(err){ toast('Ese archivo no es un respaldo válido'); return; }
+  if(!data||data.app!=='facturas'||!Array.isArray(data.facturas)){
+    toast(data&&data.app==='clientes'?'Ese respaldo es de Clientes: cárgalo en la app de Clientes':'Ese archivo no es un respaldo de Facturas'); return;
+  }
+  saveNow(true); await q;
+  const map=lsRead(); let n=0;
+  data.facturas.forEach(f=>{ if(f&&f.id){ map[f.id]=f; n++; } });
+  if(!lsWrite(map)){ toast('No hay espacio para cargar todo el respaldo'); return; }
+  loadLocal(); toast(n===1?'Se cargó 1 factura':'Se cargaron '+n+' facturas');
 });
 
 /* ---------- aviso ---------- */

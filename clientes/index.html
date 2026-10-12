@@ -646,7 +646,7 @@ $('#bkImport').addEventListener('change',async e=>{
     for(const f of (data.fotos||[])) if(f&&f.id&&f.data) await put('fotos',{id:f.id,clienteId:f.clienteId,nombre:f.nombre,fecha:f.fecha,blob:await dataToBlob(f.data)});
   }catch(err){ toast('No se pudo cargar todo el respaldo'); }
   clientes=await getAll('clientes'); await refreshList();
-  $('#bk').hidden=true; toast('Se cargaron '+data.clientes.length+' clientes');
+  $('#bk').hidden=true; toast(data.clientes.length===1?'Se cargó 1 cliente':'Se cargaron '+data.clientes.length+' clientes');
 });
 
 document.addEventListener('keydown',e=>{
