@@ -196,6 +196,7 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
       <div class="sec-head"><h2>Prendas</h2><span class="count" id="itemCount"></span></div>
       <div id="items"></div>
       <button type="button" class="btn add" id="addItem">Agregar prenda</button>
+      <button type="button" class="btn add" id="addCat">Agregar del catálogo</button>
     </section>
 
     <section>
@@ -248,6 +249,22 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
         <button type="button" class="btn ghost" id="bkExport">Guardar respaldo</button>
         <label class="btn ghost">Cargar respaldo<input type="file" class="sr" id="bkImport" accept=".json,application/json"></label>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer" id="catDrawer" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="catTitle">
+    <div class="panel-h">
+      <h2 id="catTitle">Del catálogo</h2>
+      <button type="button" class="btn ghost" id="catClose">Cerrar</button>
+    </div>
+    <div class="search"><input id="catSearch" type="search" placeholder="Buscar prenda" aria-label="Buscar prenda del catálogo"></div>
+    <div class="list" id="catList"></div>
+    <div id="catPick" hidden style="padding:0 16px 16px">
+      <p id="catPickName" style="font-weight:700;margin:4px 0 10px"></p>
+      <div class="tallas" id="catTallas" style="margin-top:0"></div>
+      <button type="button" class="btn add" id="catBack" style="margin-top:14px">‹ Elegir otra prenda</button>
     </div>
   </div>
 </div>
@@ -790,6 +807,65 @@ $('#btnNueva').addEventListener('click',()=>{
   cur=newInvoice(); dirty=false; lastBlob=null; renderAll(); window.scrollTo(0,0);
   setSave('','Nueva factura sin guardar');
   const c=$('[data-f="cliente"]'); if(c) c.focus({preventScroll:true});
+});
+
+/* ---------- prendas desde el Catálogo ---------- */
+const CATDB='catalogo_db';
+let catProds=[], catFotos=[], catSel=null;
+async function leerCatalogo(){
+  try{
+    if(indexedDB.databases){ const l=await indexedDB.databases(); if(!l.some(d=>d.name===CATDB)) return null; }
+    const d=await new Promise((res,rej)=>{ const r=indexedDB.open(CATDB); r.onupgradeneeded=()=>{ try{ r.transaction.abort(); }catch(e){} }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    if(!d.objectStoreNames.contains('productos')){ d.close(); return null; }
+    const get=st=>new Promise((res,rej)=>{ const q=d.transaction(st).objectStore(st).getAll(); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+    const out={productos:await get('productos'),fotos:await get('fotos')}; d.close(); return out;
+  }catch(e){ return null; }
+}
+const catURLs=[];
+function catFoto(p,ck){ const fs=catFotos.filter(f=>f.productoId===p.id&&(!ck||f.colorK===ck)).sort((a,b)=>(a.fecha||0)-(b.fecha||0)); return fs[0]||catFotos.find(f=>f.id===p.portada)||null; }
+function catURL(f){ const u=URL.createObjectURL(f.blob); catURLs.push(u); return u; }
+function renderCat(){
+  const q=($('#catSearch').value||'').toLowerCase().trim(); const rows=[];
+  catProds.filter(p=>p.estado!=='agotado').forEach(p=>(p.colores||[{k:null,nombre:''}]).forEach(c=>{
+    const txt=[p.nombre,p.marca,c.nombre].join(' ').toLowerCase(); if(q&&!txt.includes(q)) return;
+    rows.push({p,c});
+  }));
+  if(!rows.length){ $('#catList').innerHTML='<p class="empty">'+(catProds.length?'Ninguna prenda coincide.':'Tu catálogo está vacío. Agrega productos en la app Catálogo.')+'</p>'; return; }
+  $('#catList').innerHTML=rows.map((x,i)=>{ const f=catFoto(x.p,x.c.k);
+    return '<div class="row" data-ci="'+i+'">'+(f?'<img class="th" src="'+catURL(f)+'" alt="">':'<span class="th"></span>')+
+      '<button type="button" class="open" data-ci="'+i+'"><b>'+esc(x.p.nombre||'Sin nombre')+(x.c.nombre&&(x.p.colores||[]).length>1?' · '+esc(x.c.nombre):'')+'</b><small>'+esc([x.p.marca,{early:'Early Access',preventa:'Preventa',camino:'En camino',disponible:'Disponible'}[x.p.estado]].filter(Boolean).join(' · '))+'</small></button>'+
+      '<div class="side"><span class="amt">'+money(x.p.precio)+'</span></div></div>'; }).join('');
+  catRows=rows;
+}
+let catRows=[];
+$('#addCat').addEventListener('click',async()=>{
+  const data=await leerCatalogo();
+  catProds=data?data.productos:[]; catFotos=data?data.fotos:[];
+  $('#catSearch').value=''; $('#catPick').hidden=true; $('#catList').hidden=false; renderCat();
+  $('#catDrawer').hidden=false; document.body.style.overflow='hidden';
+});
+function cerrarCat(){ $('#catDrawer').hidden=true; document.body.style.overflow=''; catURLs.splice(0).forEach(u=>URL.revokeObjectURL(u)); }
+$('#catClose').addEventListener('click',cerrarCat);
+$('#catDrawer').addEventListener('click',e=>{ if(e.target.id==='catDrawer') cerrarCat(); });
+$('#catSearch').addEventListener('input',()=>{ $('#catPick').hidden=true; $('#catList').hidden=false; renderCat(); });
+$('#catList').addEventListener('click',e=>{
+  const b=e.target.closest('[data-ci]'); if(!b) return; catSel=catRows[+b.dataset.ci]; if(!catSel) return;
+  const ts=Object.entries(catSel.c.tallas||{});
+  $('#catPickName').textContent=(catSel.p.nombre||'')+(catSel.c.nombre?' · '+catSel.c.nombre:'')+' — elige la talla';
+  $('#catTallas').innerHTML=(ts.length?ts:[['M',0]]).map(([t,n])=>'<button type="button" class="chip" data-ct="'+esc(t)+'">'+esc(t)+(catSel.p.estado==='disponible'?' <span style="font-weight:400;opacity:.7">('+n+')</span>':'')+'</button>').join('')+
+    '<button type="button" class="chip" data-ct="">Sin talla</button>';
+  $('#catList').hidden=true; $('#catPick').hidden=false;
+});
+$('#catBack').addEventListener('click',()=>{ $('#catPick').hidden=true; $('#catList').hidden=false; });
+$('#catTallas').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-ct]'); if(!b||!catSel||!cur) return;
+  const {p,c}=catSel, f=catFoto(p,c.k);
+  const it=Object.assign(blankItem(),{nombre:(p.nombre||'')+(c.nombre&&(p.colores||[]).length>1?' – '+c.nombre:''),desc:[p.descripcion,(p.colores||[]).length<=1?c.nombre:''].filter(Boolean).join(' · '),talla:b.dataset.ct,precio:p.precio?String(p.precio):''});
+  if(f){ try{ const sm=await compress(f.blob,520,.72); it.foto={data:await toDataURL(sm.blob),zoom:1,x:.5,y:.5}; }catch(err){} }
+  const last=cur.items[cur.items.length-1];
+  if(last&&!last.nombre&&!num(last.precio)&&!last.foto) cur.items[cur.items.length-1]=it; else cur.items.push(it);
+  renderItems(); changed(); cerrarCat();
+  toast('Se agregó '+(p.nombre||'la prenda')+(b.dataset.ct?' talla '+b.dataset.ct:''));
 });
 
 /* ---------- respaldo ---------- */
