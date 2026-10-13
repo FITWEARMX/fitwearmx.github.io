@@ -218,6 +218,7 @@ label>input,label>textarea{margin-top:6px}
 
     <section class="s">
       <h3>Tallas</h3>
+      <div class="blk"><p class="lbl">Compra ropa de</p><div class="chips" id="lineaCli"></div></div>
       <div class="blk"><p class="lbl">Playeras / tops</p><div class="chips" data-size="tallaArriba"></div></div>
       <div class="blk"><p class="lbl">Pants / leggings / shorts</p><div class="chips" data-size="tallaAbajo"></div></div>
       <label style="max-width:200px">Tenis (MX)<input data-f="tallaTenis" inputmode="decimal" placeholder="26.5" autocomplete="off"></label>
@@ -352,7 +353,7 @@ function comprasPorNum(){
 let clientes=[], cur=null, curFotos=[], fotoURLs=[], saved=false, filtro='', dirty=false, saveTimer=null;
 function blank(){
   return {id:'c'+uid(),num:nextNum(),nombre:'',telefono:'',correo:'',instagram:'',cumple:'',direccion:'',notas:'',
-    tallaArriba:'',tallaAbajo:'',tallaTenis:'',marcas:[],etiquetas:[],portada:null,createdAt:Date.now(),updatedAt:Date.now()};
+    linea:'',tallaArriba:'',tallaAbajo:'',tallaTenis:'',marcas:[],etiquetas:[],portada:null,createdAt:Date.now(),updatedAt:Date.now()};
 }
 function nextNum(){
   let max=0; clientes.forEach(c=>{const n=numCli(c.num); if(/^\d+$/.test(n)) max=Math.max(max,+n);});
@@ -376,7 +377,7 @@ function avHTML(c){
 }
 function renderFilters(){
   const tags=new Set(); clientes.forEach(c=>(c.etiquetas||[]).forEach(t=>tags.add(t)));
-  const opts=[['','Todos']].concat(clientes.some(cumpleEsteMes)?[['__cumple','🎂 Cumple este mes']]:[]).concat([...tags].sort().map(t=>[t,t]));
+  const opts=[['','Todos']].concat(clientes.some(c=>c.linea)?[['__hombre','Hombre'],['__mujer','Mujer']]:[]).concat(clientes.some(cumpleEsteMes)?[['__cumple','🎂 Cumple este mes']]:[]).concat([...tags].sort().map(t=>[t,t]));
   if(filtro&&!opts.some(o=>o[0]===filtro)) filtro='';
   $('#filters').innerHTML=opts.length>1?opts.map(o=>'<button type="button" class="chip'+(filtro===o[0]?' on':'')+'" data-filtro="'+esc(o[0])+'" aria-pressed="'+(filtro===o[0])+'">'+esc(o[1])+'</button>').join(''):'';
 }
@@ -384,7 +385,8 @@ function renderList(){
   const q=($('#q').value||'').toLowerCase().trim(), qd=digits(q), compras=comprasPorNum();
   let rows=clientes.filter(c=>{
     if(filtro==='__cumple'&&!cumpleEsteMes(c)) return false;
-    if(filtro&&filtro!=='__cumple'&&!(c.etiquetas||[]).includes(filtro)) return false;
+    if((filtro==='__hombre'||filtro==='__mujer')&&!(c.linea===filtro.slice(2)||c.linea==='ambos')) return false;
+    if(filtro&&!filtro.startsWith('__')&&!(c.etiquetas||[]).includes(filtro)) return false;
     if(!q) return true;
     const hay=[c.nombre,c.instagram,c.correo,c.notas,'#'+numCli(c.num)].join(' ').toLowerCase();
     return hay.includes(q)||(qd.length>=3&&digits(c.telefono).includes(qd))||(qd&&numCli(c.num)===numCli(qd));
@@ -431,6 +433,7 @@ function nuevo(){
 function mostrar(){
   document.querySelectorAll('#form [data-f]').forEach(el=>{ el.value=cur[el.dataset.f]==null?'':cur[el.dataset.f]; });
   document.querySelectorAll('[data-size]').forEach(renderSize);
+  renderLineaCli();
   document.querySelectorAll('[data-multi]').forEach(renderMulti);
   head(); renderFotos(); renderCompras(); numCheck();
   confirmDel(false);
@@ -490,6 +493,14 @@ $('#form').addEventListener('input',e=>{
 $('#form').addEventListener('change',e=>{
   if(e.target.dataset.f==='num'&&cur){ const k=numCli(e.target.value); if(k!==e.target.value){ e.target.value=k; cur.num=k; head(); numCheck(); cambio(); } }
 });
+
+/* para quién compra (hombre / mujer / ambos) */
+const LINEA_CLI=[['hombre','Hombre'],['mujer','Mujer'],['ambos','Ambos']];
+function renderLineaCli(){
+  $('#lineaCli').innerHTML=LINEA_CLI.map(l=>'<button type="button" class="chip'+(cur.linea===l[0]?' on':'')+'" data-lc="'+l[0]+'" aria-pressed="'+(cur.linea===l[0])+'">'+l[1]+'</button>').join('');
+}
+$('#lineaCli').addEventListener('click',e=>{ const b=e.target.closest('[data-lc]'); if(!b||!cur) return; e.stopPropagation();
+  cur.linea=cur.linea===b.dataset.lc?'':b.dataset.lc; renderLineaCli(); cambio(); });
 
 /* tallas (una sola) */
 function renderSize(box){
