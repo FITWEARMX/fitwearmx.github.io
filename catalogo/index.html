@@ -334,6 +334,16 @@ label>input,label>textarea,label>select{margin-top:6px}
       <option value="1">Sin redondeo ($1,152)</option>
     </select></label>
     <button type="button" class="btn full" id="ajGuardar">Guardar ajustes</button>
+    <h2 style="font-size:20px;margin-top:14px">Tienda en internet</h2>
+    <p>Publica tus productos (los que tienen “Mostrar en la tienda”) en tu página. Nunca se publican costos, márgenes, notas ni datos de tus clientes.</p>
+    <div class="grid2">
+      <label>Usuario de GitHub<input id="ghUser" autocomplete="off" autocapitalize="off"></label>
+      <label>Repositorio<input id="ghRepo" autocomplete="off" autocapitalize="off"></label>
+    </div>
+    <label>Llave de GitHub <span class="opt">(se guarda solo en este aparato)</span><input id="ghToken" type="password" autocomplete="off" autocapitalize="off" placeholder="github_pat_…"></label>
+    <button type="button" class="btn full" id="btnPublicar">Publicar tienda</button>
+    <p class="note" id="pubStatus" style="margin-top:8px"></p>
+    <p class="note"><a id="pubLink" target="_blank" rel="noopener" style="color:var(--blue)"></a></p>
     <h2 style="font-size:20px;margin-top:14px">Respaldo</h2>
     <p id="bkLast"></p>
     <button type="button" class="btn ghost full" id="bkExport">Guardar respaldo</button>
@@ -969,7 +979,7 @@ $('#btnDel').addEventListener('click',async()=>{
 });
 
 /* ---------- ajustes ---------- */
-function abrirAj(){ $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
+function abrirAj(){ pintarGH(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
 $('#btnAjustes').addEventListener('click',abrirAj);
 $('#bkWarn').addEventListener('click',abrirAj);
 $('#ajClose').addEventListener('click',()=>{ $('#aj').hidden=true; });
@@ -981,6 +991,95 @@ $('#ajGuardar').addEventListener('click',async()=>{
   // recalcula y guarda el precio de todos los productos
   for(const p of productos){ const nv=precioVenta(p); if(nv!==p.precio){ p.precio=nv; try{ await put('productos',p); }catch(e){} } }
   $('#aj').hidden=true; renderList(); toast('Ajustes guardados: precios actualizados');
+});
+
+/* ---------- publicar la tienda en GitHub ---------- */
+const GH_KEY=CFG.db+'_github';
+let GH={user:'Sacldna',repo:'tienda',token:''};
+try{ Object.assign(GH,JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){}
+function pintarGH(){
+  $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token;
+  const url='https://'+GH.user.toLowerCase()+'.github.io/'+GH.repo+'/';
+  $('#pubLink').href=url; $('#pubLink').textContent='Ver mi tienda: '+url.replace('https://','');
+  if(CFG.demo){ $('#btnPublicar').disabled=true; $('#pubStatus').textContent='En la versión de prueba no se publica nada.'; }
+}
+function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
+async function gh(path,opt){
+  opt=opt||{};
+  const r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',
+    headers:Object.assign({'Authorization':'Bearer '+GH.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{}),
+    body:opt.body?JSON.stringify(opt.body):undefined});
+  if(!r.ok){ let m=''; try{ m=(await r.json()).message||''; }catch(e){} throw {status:r.status,msg:m}; }
+  return r.status===204?null:r.json();
+}
+function b64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
+async function jpegTienda(blob){
+  const u=URL.createObjectURL(blob);
+  try{
+    const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,1200/Math.max(w,h));
+    const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.82)); return new Uint8Array(await b.arrayBuffer());
+  } finally { URL.revokeObjectURL(u); }
+}
+/* Arma lo que ve el público. Solo campos públicos: nada de costos, márgenes, notas ni clientes. */
+async function armarTienda(){
+  const pubs=productos.filter(p=>p.enTienda!==false&&B(p)!=='agotado'&&(p.nombre||'').trim());
+  const fotos=await getAll('fotos');
+  const lista=[], usadas=[];
+  for(const p of pubs){
+    const colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',tallas:Object.assign({},c.tallas||{}),fotos:[]}));
+    const fs=fotos.filter(f=>f.productoId===p.id).sort((a,b)=>(a.fecha||0)-(b.fecha||0));
+    if(p.portada){ const i=fs.findIndex(f=>f.id===p.portada); if(i>0) fs.unshift(fs.splice(i,1)[0]); }
+    for(const f of fs){
+      const c=colores.find(x=>x.k===f.colorK)||colores[0]; if(!c) continue;
+      const path='fotos/'+f.id+'.jpg'; c.fotos.push(path); usadas.push({path,blob:f.blob});
+    }
+    const base=precioDe(p), venta=precioVenta(p);
+    lista.push({id:p.id,nombre:(p.nombre||'').trim(),marca:(p.marca||'').trim(),categoria:p.categoria||'',linea:p.linea||'',descripcion:(p.descripcion||'').trim(),
+      estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
+      precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
+  }
+  return {datos:{actualizado:new Date().toISOString(),productos:lista},fotos:usadas};
+}
+function estado(t){ $('#pubStatus').textContent=t; }
+$('#btnPublicar').addEventListener('click',async()=>{
+  if(CFG.demo) return;
+  leerGH();
+  if(!GH.user||!GH.repo||!GH.token){ estado('Llena tu usuario, el repositorio y tu llave de GitHub.'); return; }
+  const btn=$('#btnPublicar'); btn.disabled=true; btn.textContent='Publicando…';
+  try{
+    estado('Revisando tu tienda en GitHub…');
+    const ref=await gh('/git/ref/heads/main');
+    const commit=await gh('/git/commits/'+ref.object.sha);
+    const tree=await gh('/git/trees/'+commit.tree.sha+'?recursive=1');
+    const remoto=new Map((tree.tree||[]).filter(e=>e.type==='blob').map(e=>[e.path,e]));
+    const {datos,fotos}=await armarTienda();
+    const entradas=[...remoto.values()].filter(e=>!e.path.startsWith('fotos/')&&e.path!=='datos.json').map(e=>({path:e.path,mode:e.mode,type:'blob',sha:e.sha}));
+    let n=0;
+    for(const f of fotos){
+      n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
+      const ya=remoto.get(f.path);
+      let sha=ya&&ya.sha;
+      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; }
+      entradas.push({path:f.path,mode:'100644',type:'blob',sha});
+    }
+    entradas.push({path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)});
+    estado('Guardando cambios…');
+    const nuevo=await gh('/git/trees',{method:'POST',body:{tree:entradas}});
+    const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref.object.sha]}});
+    await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}});
+    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+'. Tu tienda se actualiza en 1 o 2 minutos.');
+    toast('Tienda publicada');
+  }catch(e){
+    const s=e&&e.status;
+    estado(s===401?'La llave no es válida o ya venció. Crea una nueva en GitHub.':
+      (s===403||s===404)?'No se encontró el repositorio o la llave no tiene permiso para “'+GH.repo+'”.':
+      s===409?'El repositorio está vacío. Primero sube los archivos de la tienda.':
+      s===422?'GitHub rechazó los cambios. Intenta de nuevo.':
+      'No se pudo publicar. Revisa tu internet e intenta de nuevo.');
+  }
+  btn.disabled=false; btn.textContent='Publicar tienda';
 });
 
 /* ---------- respaldo ---------- */
