@@ -133,6 +133,14 @@ label>input,label>select{margin-top:6px}
       <section class="card">
         <h2>3. Estilo</h2>
         <p class="note" style="margin:0 0 6px">Franja</p><div class="chips" id="estilos"></div>
+        <div id="colBox"><p class="note" style="margin:14px 0 6px">Colores (letras, fondo y etiqueta)</p><div class="chips" id="paletas"></div>
+          <div class="grid2" id="colCustom" style="grid-template-columns:repeat(3,1fr);margin-top:10px" hidden>
+            <label>Nombre<input type="color" id="cTit" style="min-height:44px;padding:4px"></label>
+            <label>Precio<input type="color" id="cPre" style="min-height:44px;padding:4px"></label>
+            <label>Descripción<input type="color" id="cDes" style="min-height:44px;padding:4px"></label>
+            <label>Fondo<input type="color" id="cFon" style="min-height:44px;padding:4px"></label>
+            <label>Etiqueta<input type="color" id="cEtq" style="min-height:44px;padding:4px"></label>
+          </div></div>
         <p class="note" style="margin:14px 0 6px">Etiqueta (preview, restock…)</p><div class="chips" id="etqEst"></div>
         <p class="note" style="margin:14px 0 6px">Tu logo</p><div class="chips" id="logos"></div>
       </section>
@@ -261,24 +269,29 @@ function franjaFactura(d,o){
   if(o.linea3){ d.font='500 34px '+SANS; wrap(d,o.linea3,max).forEach(l=>filas.push({tipo:'l3',t:l,f:'500 34px '+SANS,h:46})); }
   return {filas,alto:filas.reduce((a,f)=>a+f.h,0)+(filas.length?70:0),factura:true};
 }
-function pintarFactura(d,y,fr){
-  d.fillStyle=K.bg; d.fillRect(0,y,W,fr.alto);
-  const m=18; rr(d,m,y+m,W-2*m,fr.alto-2*m,22); d.fillStyle=K.card; d.fill();
-  d.fillStyle=K.white; d.fillRect(m+18,y+m+22,6,fr.alto-2*m-44);   // barrita blanca como en "MUCHAS GRACIAS POR TU COMPRA"
+function hexRGB(h){ const m=/^#?([0-9a-f]{6})$/i.exec(h||''); if(!m) return [22,22,24]; const n=parseInt(m[1],16); return [n>>16&255,n>>8&255,n&255]; }
+function tono(h,f){ const c=hexRGB(h); return 'rgb('+c.map(v=>Math.max(0,Math.min(255,Math.round(v*f)))).join(',')+')'; }
+function claro(h){ const c=hexRGB(h); return (0.299*c[0]+0.587*c[1]+0.114*c[2])>150; }
+function alfa(h,a){ const c=hexRGB(h); return 'rgba('+c.join(',')+','+a+')'; }
+function pintarFactura(d,y,fr,o){
+  const C=Object.assign({titulo:K.white,precio:K.green,desc:K.grey,fondo:K.card,etiqueta:'#5a96ff'},(o&&o.colores)||{});
+  d.fillStyle=claro(C.fondo)?tono(C.fondo,.93):tono(C.fondo,.55); d.fillRect(0,y,W,fr.alto);
+  const m=18; rr(d,m,y+m,W-2*m,fr.alto-2*m,22); d.fillStyle=C.fondo; d.fill();
+  d.fillStyle=C.titulo; d.fillRect(m+18,y+m+22,6,fr.alto-2*m-44);   // barrita blanca como en "MUCHAS GRACIAS POR TU COMPRA"
   d.textBaseline='middle'; let cy=y+35;
   fr.filas.forEach(f=>{
     const mid=cy+f.h/2;
     if(f.tipo==='tit'){
       d.font='800 '+f.z+'px '+SANS; const a=d.measureText(f.tit).width, b=f.pre?d.measureText((f.tit?'  ':'')+f.pre).width:0, x0=(W-a-b)/2;
-      d.textAlign='left'; d.fillStyle=K.white; d.fillText(f.tit,x0,mid); if(f.pre){ d.fillStyle=K.green; d.fillText((f.tit?'  ':'')+f.pre,x0+a,mid); }
-    } else if(f.tipo==='etq'){ d.font=f.f; const tw=d.measureText(f.t).width+40, x=(W-tw)/2; rr(d,x,mid-21,tw,42,21); d.fillStyle='rgba(90,150,255,.16)'; d.fill(); d.fillStyle='#5a96ff'; d.textAlign='center'; d.fillText(f.t,W/2,mid+1); }
-    else { d.font=f.f; d.textAlign='center'; d.fillStyle=f.tipo==='l1'?K.dim:K.grey; d.fillText(f.t,W/2,mid); }
+      d.textAlign='left'; d.fillStyle=C.titulo; d.fillText(f.tit,x0,mid); if(f.pre){ d.fillStyle=C.precio; d.fillText((f.tit?'  ':'')+f.pre,x0+a,mid); }
+    } else if(f.tipo==='etq'){ d.font=f.f; const tw=d.measureText(f.t).width+40, x=(W-tw)/2; rr(d,x,mid-21,tw,42,21); d.fillStyle=alfa(C.etiqueta,.18); d.fill(); d.fillStyle=C.etiqueta; d.textAlign='center'; d.fillText(f.t,W/2,mid+1); }
+    else { d.font=f.f; d.textAlign='center'; d.fillStyle=f.tipo==='l1'?alfa(C.desc,.75):C.desc; d.fillText(f.t,W/2,mid); }
     cy+=f.h;
   });
 }
 function rr(d,x,y,w,h,r){d.beginPath();d.moveTo(x+r,y);d.arcTo(x+w,y,x+w,y+h,r);d.arcTo(x+w,y+h,x,y+h,r);d.arcTo(x,y+h,x,y,r);d.arcTo(x,y,x+w,y,r);d.closePath();}
 function pintarFranja(d,y,fr,o){
-  if(fr.factura){ pintarFactura(d,y,fr); return; }
+  if(fr.factura){ pintarFactura(d,y,fr,o); return; }
   const lg=o.marca, enFranja=lg&&lg.negro&&o.marcaPos==='franja';
   const negro=o.estilo!=='blanco';
   d.fillStyle=negro?'#0b0b0c':'#ffffff'; d.fillRect(0,y,W,fr.alto);
@@ -292,11 +305,12 @@ function pintarFranja(d,y,fr,o){
 function etiqueta(d,o,yBase){
   if(!o.etiqueta||o.etqEstilo==='franja') return;
   if(o.estilo==='factura'&&o.etqEstilo&&o.etqEstilo!=='rojo'){
+    const CE=(o.colores&&o.colores.etiqueta)||'#5a96ff', CF=(o.colores&&o.colores.fondo)||K.card;
     d.font='700 36px '+SANS; const t=String(o.etiqueta).toUpperCase(), tw=d.measureText(t).width+(o.etqEstilo==='negro'?96:64), th=72, x=(W-tw)/2, y=yBase-th-36;
-    if(o.etqEstilo==='negro'){ rr(d,x,y,tw,th,36); d.fillStyle=K.card; d.fill(); d.lineWidth=2; d.strokeStyle=K.line; d.stroke();
-      d.fillStyle='#5a96ff'; d.beginPath(); d.arc(x+38,y+th/2,9,0,Math.PI*2); d.fill();
-      d.fillStyle=K.white; d.textAlign='left'; d.textBaseline='middle'; d.fillText(t,x+62,y+th/2+1); }
-    else { rr(d,x,y,tw,th,36); d.fillStyle='#5a96ff'; d.fill(); d.fillStyle='#ffffff'; d.textAlign='center'; d.textBaseline='middle'; d.fillText(t,W/2,y+th/2+1); }
+    if(o.etqEstilo==='negro'){ rr(d,x,y,tw,th,36); d.fillStyle=CF; d.fill(); d.lineWidth=2; d.strokeStyle=K.line; d.stroke();
+      d.fillStyle=CE; d.beginPath(); d.arc(x+38,y+th/2,9,0,Math.PI*2); d.fill();
+      d.fillStyle=(o.colores&&o.colores.titulo)||K.white; d.textAlign='left'; d.textBaseline='middle'; d.fillText(t,x+62,y+th/2+1); }
+    else { rr(d,x,y,tw,th,36); d.fillStyle=CE; d.fill(); d.fillStyle=claro(CE)?'#0b0b0c':'#ffffff'; d.textAlign='center'; d.textBaseline='middle'; d.fillText(t,W/2,y+th/2+1); }
     return;
   }
   d.font=o.estilo==='factura'?'700 38px '+SANS:'600 40px '+MONO; const tw=d.measureText(o.etiqueta).width+60, th=74;
@@ -363,7 +377,7 @@ if(!AJ){ AJ={tc:18,margen:60,red:10}; try{ Object.assign(AJ,JSON.parse(localStor
 function pesos(usd){ const v=num(usd)*num(AJ.tc)*(1+num(AJ.margen)/100), r=num(AJ.red)||1; return v?Math.ceil(v/r-1e-9)*r:0; }
 
 /* estado de la historia actual */
-const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true},LS.get('estilo',{}));
+const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true,paleta:'facturas'},LS.get('estilo',{}));
 let fotos=[null,null,null,null], ajustes=[{},{},{},{}], sel=-1, cola=[], mxnManual=false;
 const marca={negro:new Image(),crema:new Image()}; marca.negro.src=LOGO_NEGRO; marca.crema.src=LOGO_CREMA;
 
@@ -372,12 +386,31 @@ const hoyMas=d=>{ const x=new Date(); x.setDate(x.getDate()+d); return x.getDate
 const FRASES=['ordena con $500','líquidas en 2 semanas','entrega inmediata','disp el '+hoyMas(1),'últimas piezas','todas las tallas'];
 const ETIQ=['PREVIEW RESTOCK '+hoyMas(0),'PREVIEW','RESTOCK','NUEVO DROP','OFERTA','ÚLTIMAS PIEZAS','PREVENTA'];
 
+const PALETAS={
+  facturas:{n:'Facturas',titulo:'#f5f5f5',precio:'#46c86e',desc:'#96969b',fondo:'#161618',etiqueta:'#5a96ff'},
+  blanca:{n:'Fondo blanco',titulo:'#0b0b0c',precio:'#1e9a4a',desc:'#5a5a60',fondo:'#ffffff',etiqueta:'#2f6fe0'},
+  negro:{n:'Blanco y negro',titulo:'#ffffff',precio:'#ffffff',desc:'#b9b9be',fondo:'#0b0b0c',etiqueta:'#ffffff'},
+  dorado:{n:'Dorado',titulo:'#f5f5f5',precio:'#e8b84a',desc:'#c9b48a',fondo:'#161618',etiqueta:'#e8b84a'},
+  azul:{n:'Azul',titulo:'#f5f5f5',precio:'#5a96ff',desc:'#9fb6dc',fondo:'#10192b',etiqueta:'#5a96ff'},
+  rojo:{n:'Rojo',titulo:'#f5f5f5',precio:'#ff5a4f',desc:'#c9a3a0',fondo:'#161618',etiqueta:'#ff5a4f'},
+  morado:{n:'Morado',titulo:'#f5f5f5',precio:'#a98bff',desc:'#b4a9d6',fondo:'#17131f',etiqueta:'#a98bff'},
+  rosa:{n:'Rosa',titulo:'#f5f5f5',precio:'#ff7ab8',desc:'#d6a9c0',fondo:'#161618',etiqueta:'#ff7ab8'}
+};
+function colores(){ if(st.paleta==='personal') return Object.assign({},PALETAS.facturas,st.colores||{}); return PALETAS[st.paleta]||PALETAS.facturas; }
+function swatch(v){ return 'background:linear-gradient(135deg,'+v.fondo+' 50%,'+v.precio+' 50%)'; }
+function chipsPaleta(){
+  $('#paletas').innerHTML=Object.entries(PALETAS).map(([k,v])=>'<button type="button" class="chip'+(st.paleta===k?' on':'')+'" data-pal="'+k+'"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;'+swatch(v)+';margin-right:6px;vertical-align:-2px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></span>'+v.n+'</button>').join('')+
+    '<button type="button" class="chip'+(st.paleta==='personal'?' on':'')+'" data-pal="personal">🎨 Personalizado</button>';
+  $('#colCustom').hidden=st.paleta!=='personal'; const c=colores(); $('#cTit').value=c.titulo; $('#cPre').value=c.precio; $('#cDes').value=c.desc; $('#cFon').value=c.fondo; $('#cEtq').value=c.etiqueta;
+  $('#colBox').hidden=st.estilo!=='factura';
+}
 function chips(el,ops,val,key){ el.innerHTML=ops.map(o=>'<button type="button" class="chip'+(val===o[0]?' on':'')+'" data-'+key+'="'+esc(o[0])+'">'+esc(o[1])+'</button>').join(''); }
 function pintarOpciones(){
   chips($('#disenos'),[['4','4 fotos'],['2','2 fotos'],['1','1 foto']],st.diseno,'dis');
   chips($('#estilos'),[['factura','Como mis facturas'],['blanco','Blanca'],['negro','Negra']],st.estilo,'est');
   chips($('#etqEst'),[['franja','Dentro de la franja'],['negro','Abajo, negra'],['azul','Abajo, azul']],st.etq,'etqe');
   chips($('#logos'),[['arriba-der','Arriba derecha'],['arriba-izq','Arriba izquierda'],['abajo-der','Abajo derecha'],['abajo-izq','Abajo izquierda'],['no','Sin logo']],st.marca?st.marcaPos:'no','logo');
+  chipsPaleta();
   $('#frases').innerHTML=FRASES.map(f=>'<button type="button" class="chip" data-frase="'+esc(f)+'">+ '+esc(f)+'</button>').join('');
   $('#etiquetas').innerHTML=ETIQ.map(f=>'<button type="button" class="chip" data-etq="'+esc(f)+'">'+esc(f)+'</button>').join('')+'<button type="button" class="chip" data-etq="">Sin etiqueta</button>';
 }
@@ -394,7 +427,7 @@ function opciones(){
   return {diseno:st.diseno,fotos:fotos.slice(0,n()),ajustes:ajustes.slice(0,n()),estilo:st.estilo,
     linea1:$('#tLinea1').value.trim(),titulo:$('#tTitulo').value.trim().toUpperCase(),precio:precioTxt(),
     linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
-    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:st.estilo==='factura'?st.etq:'rojo'};
+    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:st.estilo==='factura'?st.etq:'rojo',colores:colores()};
 }
 function precioTxt(){ const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
 let raf=0;
@@ -428,12 +461,14 @@ $('#ajReset').addEventListener('click',()=>{ ajustes[sel]={}; pintarSlots(); pre
 document.addEventListener('click',e=>{
   const d=e.target.closest('[data-dis]'); if(d){ st.diseno=d.dataset.dis; sel=-1; LS.set('estilo',st); pintarOpciones(); pintarSlots(); previa(); return; }
   const es=e.target.closest('[data-est]'); if(es){ st.estilo=es.dataset.est; LS.set('estilo',st); pintarOpciones(); previa(); return; }
+  const pl=e.target.closest('[data-pal]'); if(pl){ if(pl.dataset.pal==='personal'&&st.paleta!=='personal') st.colores=Object.assign({},colores()); st.paleta=pl.dataset.pal; LS.set('estilo',st); chipsPaleta(); previa(); return; }
   const ee=e.target.closest('[data-etqe]'); if(ee){ st.etq=ee.dataset.etqe; LS.set('estilo',st); pintarOpciones(); previa(); return; }
   const lg=e.target.closest('[data-logo]'); if(lg){ if(lg.dataset.logo==='no') st.marca=false; else { st.marca=true; st.marcaPos=lg.dataset.logo; } LS.set('estilo',st); pintarOpciones(); previa(); return; }
   const fr=e.target.closest('[data-frase]'); if(fr){ const t=$('#tDesc'); const v=t.value.trim(); t.value=v?(v+' · '+fr.dataset.frase):fr.dataset.frase; previa(); return; }
   const et=e.target.closest('[data-etq]'); if(et){ $('#tEtiqueta').value=et.dataset.etq; previa(); return; }
 });
 ['tLinea1','tTitulo','tDesc','tEtiqueta'].forEach(id=>$('#'+id).addEventListener('input',previa));
+[['cTit','titulo'],['cPre','precio'],['cDes','desc'],['cFon','fondo'],['cEtq','etiqueta']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ st.colores=Object.assign({},st.colores||{},{[k]:$('#'+id).value}); LS.set('estilo',st); previa(); }));
 $('#tUsd').addEventListener('input',()=>{ calcular(); previa(); });
 $('#tMxn').addEventListener('input',()=>{ mxnManual=$('#tMxn').value.trim()!==''; calcular(); previa(); });
 
