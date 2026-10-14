@@ -200,6 +200,7 @@ label>input,label>textarea,label>select{margin-top:6px}
   <div class="wrap" id="form">
     <section class="s">
       <div class="sh"><h3>Fotos</h3><small id="fotoCount"></small></div>
+      <button type="button" class="btn ghost full" id="btnHistoria" style="margin-bottom:12px">📸 Crear historia de Instagram</button>
       <div class="colores" id="colores"></div>
       <div class="fotos" id="fotos"></div>
     </section>
@@ -209,7 +210,7 @@ label>input,label>textarea,label>select{margin-top:6px}
       <label>Nombre<input data-f="nombre" placeholder="Compression Tee" autocomplete="off"></label>
       <div class="grid2">
         <label>Marca<input data-f="marca" list="marcasList" placeholder="YoungLA" autocomplete="off"></label>
-        <label>Link de la tienda <span class="opt">(opcional)</span><input data-f="link" inputmode="url" placeholder="https://…" autocomplete="off"></label>
+        <label>Link de la tienda <span class="opt">(opcional)</span><input data-f="link" inputmode="url" placeholder="https://…" autocomplete="off"><a id="linkIr" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;color:var(--blue);font-size:14px">Ir a comprar ↗</a></label>
       </div>
       <datalist id="marcasList"></datalist>
       <div class="blk"><p class="lbl">Línea</p><div class="chips" id="lineas"></div></div>
@@ -590,7 +591,8 @@ function mostrar(){
   cerrarForm(); confirmDel(false);
   sheet.classList.add('open'); sheet.scrollTop=0; document.body.style.overflow='hidden';
 }
-function head(){ const n=(cur.nombre||'').trim(); $('#barName').textContent=n||'Nuevo producto'; }
+function head(){ const n=(cur.nombre||'').trim(); $('#barName').textContent=n||'Nuevo producto';
+  const l=(cur.link||'').trim(), ok=/^https?:\/\//i.test(l); $('#linkIr').hidden=!ok; if(ok) $('#linkIr').href=l; }
 async function cerrar(){
   await guardar(true);
   sheet.classList.remove('open'); document.body.style.overflow='';
@@ -598,6 +600,12 @@ async function cerrar(){
   cur=null; await refreshList();
 }
 $('#btnListo').addEventListener('click',cerrar);
+if(CFG.demo) $('#btnHistoria').hidden=true;
+$('#btnHistoria').addEventListener('click',async()=>{
+  if(!cur) return; dirty=true; await guardar(true);
+  if(!saved){ toast('Ponle nombre o una foto al producto primero'); return; }
+  location.href='../historias/#cat='+encodeURIComponent(cur.id);
+});
 $('#btnNuevo').addEventListener('click',nuevo);
 
 function vacio(p){ return !(p.nombre||'').trim()&&!has(p.costoUsd)&&!curFotos.length&&!piezas(p); }
@@ -620,7 +628,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 $('#form').addEventListener('input',e=>{
   if(!cur) return;
   const f=e.target.dataset.f, b=e.target.dataset.b;
-  if(f){ cur[f]=e.target.value; if(f==='nombre') head(); if(['costoUsd','margen','precioManual','oferta'].includes(f)) renderPrecio(); cambio(); }
+  if(f){ cur[f]=e.target.value; if(f==='nombre'||f==='link') head(); if(['costoUsd','margen','precioManual','oferta'].includes(f)) renderPrecio(); cambio(); }
   else if(b){ cur[b]=e.target.checked; cambio(); }
 });
 
@@ -995,7 +1003,7 @@ $('#ajGuardar').addEventListener('click',async()=>{
 
 /* ---------- publicar la tienda en GitHub ---------- */
 const GH_KEY=CFG.db+'_github';
-let GH={user:'Sacldna',repo:'tienda',token:''};
+let GH={user:'FITWEARMX',repo:'tienda',token:''};
 try{ Object.assign(GH,JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){}
 function pintarGH(){
   $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token;
