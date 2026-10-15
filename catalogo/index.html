@@ -1062,16 +1062,19 @@ async function armarTienda(){
   const fotos=await getAll('fotos');
   const lista=[], usadas=[];
   for(const p of pubs){
-    const colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),fotos:[]}));
+    let colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),fotos:[]}));
+    // Color principal (el que se ve en la tienda): el de tu foto de portada; si no hay, el negro; si no, el primero
+    const fPort=p.portada&&fotos.find(f=>f.id===p.portada);
+    const principal=(fPort&&colores.find(c=>c.k===fPort.colorK))||colores.find(c=>/black|negro/i.test(c.nombre))||colores[0];
+    if(principal) colores=[principal].concat(colores.filter(c=>c!==principal));
     const fs=fotos.filter(f=>f.productoId===p.id).sort((a,b)=>(a.fecha||0)-(b.fecha||0));
     if(p.portada){ const i=fs.findIndex(f=>f.id===p.portada); if(i>0) fs.unshift(fs.splice(i,1)[0]); }
     for(const f of fs){
       const c=colores.find(x=>x.k===f.colorK)||colores[0]; if(!c) continue;
       const path='fotos/'+f.id+'.jpg'; c.fotos.push(path); usadas.push({path,blob:f.blob});
     }
-    // el precio del producto es el del color más barato (la tienda dice "Desde" si varían)
-    const barato=colores.filter(c=>c.precio>0).sort((a,b)=>a.precio-b.precio)[0];
-    const base=barato?barato.precioBase:precioDe(p), venta=barato?barato.precio:precioVenta(p);
+    // el precio del producto es el de su color principal; los colores más baratos salen en "Ofertas" de la tienda
+    const base=principal&&principal.precioBase||precioDe(p), venta=principal&&principal.precio||precioVenta(p);
     lista.push({id:p.id,nombre:(p.nombre||'').trim(),marca:(p.marca||'').trim(),categoria:p.categoria||'',linea:p.linea||'',descripcion:(p.descripcion||'').trim(),
       estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
       precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
