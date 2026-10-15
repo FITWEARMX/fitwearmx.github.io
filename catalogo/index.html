@@ -1108,7 +1108,13 @@ async function armarTienda(){
   const datos={actualizado:new Date().toISOString(),productos:lista};
   // Early Access con contraseña: esos productos se publican cifrados (sin la contraseña no se pueden leer)
   const ea=lista.filter(p=>p.estado==='early');
-  if(GH.clave&&ea.length){ datos.productos=lista.filter(p=>p.estado!=='early'); datos.privado=await cifrar(JSON.stringify(ea),GH.clave); datos.privadoN=ea.length; }
+  if(GH.clave&&ea.length){ datos.productos=lista.filter(p=>p.estado!=='early'); datos.privado=await cifrar(JSON.stringify(ea),GH.clave); datos.privadoN=ea.length;
+    // portada para presumir el drop (se ve sin contraseña): la foto del producto con ⭐ Destacado, o la del primero
+    const dest=ea.find(p=>p.destacado&&((p.colores[0]||{}).fotos||[]).length)||ea.find(p=>((p.colores[0]||{}).fotos||[]).length);
+    const cuenta={}; ea.forEach(p=>{ if(p.marca) cuenta[p.marca]=(cuenta[p.marca]||0)+1; });
+    datos.privadoPortada=dest?dest.colores[0].fotos[0]:'';
+    datos.privadoMarca=Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a])[0]||'';
+    datos.privadoFecha=ea.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''; }
   return {datos,fotos:usadas};
 }
 async function cifrar(texto,clave){
