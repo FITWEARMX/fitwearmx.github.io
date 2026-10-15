@@ -382,7 +382,7 @@ function dibujar(canvas,o){
   const n=o.diseno==='4'?4:o.diseno==='3'?3:o.diseno==='2'?2:1;
   const bg=o.estilo==='blanco'?'#f2f2f2':'#ececec';
   const poner=(i,x,y,w,h)=>{ const im=fotos[i]; if(!im){ d.fillStyle='#e5e5e5'; d.fillRect(x,y,w,h); return; }
-    const a=aj[i]||{}, modo=a.modo||o.modoFoto||''; // lo de cada foto manda; si no, el de "Fotos" en Estilo
+    const a=aj[i]||{}, modo=a.modo||o.modoFoto||'llenar'; // lo de cada foto manda; si no, siempre se llena el cuadro
     // automático: si llenar el espacio cortaría más de un tercio de la foto, se muestra completa
     const completa=modo==='completa'||(modo!=='llenar'&&(o.completa||recorte(im,w,h)>.33));
     if(completa) contain(d,im,x,y,w,h,colorFondo(im)); else cover(d,im,x,y,w,h,a); };
@@ -467,7 +467,7 @@ function pintarOpciones(){
   chips($('#disenos'),[['4','4 fotos'],['3','3 fotos'],['2','2 fotos'],['1','1 foto']],st.diseno,'dis');
   chips($('#estilos'),[['factura','Como mis facturas'],['cristal','Cristal (tipo iPhone)'],['blanco','Blanca'],['negro','Negra']],st.estilo,'est');
   $('#tamFranja').value=st.tamano||100; $('#tamTxt').textContent=(st.tamano||100)+'%';
-  chips($('#modosTodos'),[['','Automático'],['llenar','Llenar el cuadro'],['completa','Foto completa']],st.modoFoto||'','mt');
+  chips($('#modosTodos'),[['llenar','Llenar el cuadro'],['completa','Foto completa']],st.modoFoto==='completa'?'completa':'llenar','mt');
   chips($('#flotas'),[['si','Fotos completas, franja flotante'],['no','Franja entre las fotos']],st.flota===false?'no':'si','flo');
   chips($('#fuentes'),[['sans','Moderna'],['redonda','Redonda'],['condensada','Angosta'],['impacto','Impacto'],['serif','Elegante'],['mono','Máquina']],st.fuente||'sans','fue');
   chips($('#etqEst'),[['franja','Dentro de la franja'],['negro','Abajo, negra'],['azul','Abajo, azul']],st.etq,'etqe');
@@ -489,7 +489,7 @@ function opciones(){
   return {diseno:st.diseno,fotos:fotos.slice(0,n()),ajustes:ajustes.slice(0,n()),estilo:st.estilo,
     linea1:$('#tLinea1').value.trim(),titulo:$('#tTitulo').value.trim().toUpperCase(),precio:precioTxt(),precioAntes:antesTxt(),
     ordena:ordenaTxt(),linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
-    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100,modoFoto:st.modoFoto||''};
+    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100,modoFoto:st.modoFoto||'llenar'};
 }
 // Anticipo para ordenar: 25% del precio en pesos, redondeado hacia arriba a decenas (igual que la tienda)
 function ordenaTxt(){ const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
