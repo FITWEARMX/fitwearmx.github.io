@@ -610,7 +610,7 @@ async function cargarDeCatalogo(id,colorK){
   else if(e.b==='preventa'){ $('#tEtiqueta').value=(e.txt||'Preventa').toUpperCase(); }
   else if(e.b==='camino'){ $('#tEtiqueta').value=((e.txt||'En camino').toUpperCase()+(p.llegaFecha?' · llega el '+fechaTxt(p.llegaFecha):'')).trim(); }
   { // si el color está más barato que el más caro de la prenda, es oferta
-    const pc=c=>(c&&c.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc));
+    const pc=c=>(c&&c.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc),(col&&col.precioAntes)||0);
     const ts=col?Object.entries(col.tallas||{}).filter(([t,x])=>e.b!=='disponible'||+x>0).map(([t])=>t):[];
     const v=col?pc(col):0;
     ponerOferta(col&&v<mx?mx:0,col&&v<mx?'OFERTA -'+Math.round((1-v/mx)*100)+'%'+(ts.length&&ts.length<=2?' · SOLO '+ts.join(', '):''):'');

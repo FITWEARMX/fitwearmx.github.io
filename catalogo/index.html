@@ -424,9 +424,11 @@ function precioVenta(p){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):pre
 /* Precio de un color: si el color tiene su propio costo en dólares se calcula con él; si no, usa el del producto */
 function precioColorBase(p,c){ return c&&has(c.costoUsd)?precioCalc(Object.assign({},p,{costoUsd:c.costoUsd})):precioDe(p); }
 function precioColor(p,c){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):precioColorBase(p,c); }
+/* Precio de antes de la rebaja de la marca (lo guarda la extensión); 0 si no hay rebaja */
+function precioAntesColor(p,c){ const v=c&&has(c.antesUsd)?precioCalc(Object.assign({},p,{costoUsd:c.antesUsd})):0; return v>precioColor(p,c)?v:0; }
 function rangoPrecios(p){ const v=(p.colores||[]).map(c=>precioColor(p,c)).filter(x=>x>0); return v.length?[Math.min(...v),Math.max(...v)]:[precioVenta(p),precioVenta(p)]; }
 function sellarPrecios(p){ let cambio=false; const nv=precioVenta(p); if(nv!==p.precio){ p.precio=nv; cambio=true; }
-  (p.colores||[]).forEach(c=>{ const v=precioColor(p,c); if(v!==c.precio){ c.precio=v; cambio=true; } }); return cambio; }
+  (p.colores||[]).forEach(c=>{ const v=precioColor(p,c), a=precioAntesColor(p,c); if(v!==c.precio||a!==(c.precioAntes||0)){ c.precio=v; c.precioAntes=a; cambio=true; } }); return cambio; }
 
 /* ---------- almacenamiento (IndexedDB) ---------- */
 let db=null;
@@ -741,7 +743,9 @@ function renderPrecio(){
   if(document.activeElement!==$('#pColorUsd')) $('#pColorUsd').value=col.costoUsd||'';
   $('#pColorUsd').placeholder=num(cur.costoUsd)?String(num(cur.costoUsd))+' (el de arriba)':'Igual que arriba';
   const cb=precioColorBase(cur,col), cv=precioColor(cur,col);
-  $('#pColorCalc').textContent=has(col.costoUsd)?('$'+num(col.costoUsd)+' × '+num(AJ.tc)+' × '+(1+m/100).toFixed(2)+' = '+money(cb)+(cv<cb?' · con oferta: '+money(cv):'')):(cv?'Usa el precio de arriba: '+money(cv):'');
+  const pa=precioAntesColor(cur,col);
+  $('#pColorCalc').textContent=(has(col.costoUsd)?('$'+num(col.costoUsd)+' × '+num(AJ.tc)+' × '+(1+m/100).toFixed(2)+' = '+money(cb)+(cv<cb?' · con oferta: '+money(cv):'')):(cv?'Usa el precio de arriba: '+money(cv):''))+
+    (pa?' · Rebaja de la marca: antes $'+num(col.antesUsd)+' USD ('+money(pa)+')':'');
 }
 $('#pColorUsd').addEventListener('input',e=>{ const col=cur.colores.find(c=>c.k===curColor)||cur.colores[0]; col.costoUsd=e.target.value.trim(); renderPrecio(); cambio(); });
 $('#pColores').addEventListener('click',e=>{ const b=e.target.closest('[data-pcolor]'); if(!b) return; curColor=b.dataset.pcolor; renderColores(); renderFotos(); renderTallas(); });
@@ -1070,7 +1074,7 @@ async function armarTienda(){
   const fotos=await getAll('fotos');
   const lista=[], usadas=[];
   for(const p of pubs){
-    let colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),agotadas:(c.agotadas||[]).slice(),agotado:!!c.agotado,fotos:[]}));
+    let colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),precioAntes:precioAntesColor(p,c),tallas:Object.assign({},c.tallas||{}),agotadas:(c.agotadas||[]).slice(),agotado:!!c.agotado,fotos:[]}));
     // Color principal (el que se ve en la tienda): el de tu foto de portada; si no hay, el negro; si no, el primero
     const fPort=p.portada&&fotos.find(f=>f.id===p.portada);
     // (si ese color está agotado en la marca, se usa otro que sí haya)
