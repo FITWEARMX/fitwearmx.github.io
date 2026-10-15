@@ -569,7 +569,7 @@ $('#btnDelCat').addEventListener('click',abrirListaCatalogo);
 $('#catQ').addEventListener('input',pintarListaCat);
 $('#catCerrar').addEventListener('click',()=>{ $('#catDr').hidden=true; });
 $('#catDr').addEventListener('click',e=>{ if(e.target.id==='catDr'){ $('#catDr').hidden=true; return; } const b=e.target.closest('[data-cat]'); if(b){ $('#catDr').hidden=true; cargarDeCatalogo(b.dataset.cat); } });
-async function cargarDeCatalogo(id){
+async function cargarDeCatalogo(id,colorK){
   const d=await abrirCatalogo(false); if(!d){ toast('Todavía no tienes productos en tu Catálogo'); return; }
   const p=await reqP(d.transaction('productos').objectStore('productos').get(id));
   let fs=await reqP(d.transaction('fotos').objectStore('fotos').index('productoId').getAll(id)); d.close();
@@ -577,7 +577,10 @@ async function cargarDeCatalogo(id){
   fs.sort((a,b)=>(a.fecha||0)-(b.fecha||0));
   // una foto de cada color primero (portada al inicio), luego las demás
   const elegidas=[], usados=new Set();
-  const port=fs.find(f=>f.id===p.portada); if(port){ elegidas.push(port); usados.add(port.id); }
+  // si vienes de un color en el Catálogo, primero las fotos de ese color
+  const col=colorK&&(p.colores||[]).find(c=>c.k===colorK);
+  if(col) fs.filter(f=>f.colorK===col.k).slice(0,4).forEach(f=>{ elegidas.push(f); usados.add(f.id); });
+  const port=!col&&fs.find(f=>f.id===p.portada); if(port){ elegidas.push(port); usados.add(port.id); }
   (p.colores||[]).forEach(c=>{ const f=fs.find(x=>x.colorK===c.k&&!usados.has(x.id)&&!elegidas.some(e=>e.colorK===c.k)); if(f){ elegidas.push(f); usados.add(f.id); } });
   fs.forEach(f=>{ if(!usados.has(f.id)){ elegidas.push(f); usados.add(f.id); } });
   const k=Math.min(4,elegidas.length); st.diseno=k>=4?'4':k>=2?'2':'1'; LS.set('estilo',st);
@@ -585,7 +588,8 @@ async function cargarDeCatalogo(id){
   for(let i=0;i<Math.min(n(),elegidas.length);i++){ try{ fotos[i]=await cargarArchivo(elegidas[i].blob); }catch(e){} }
   marcaOriginal=p.marca||''; $('#tLinea1').value=marcaOriginal.toLowerCase();
   $('#tTitulo').value=(p.nombre||'').toUpperCase();
-  $('#tUsd').value=p.costoUsd||''; $('#tMxn').value=p.precio?Math.round(p.precio):''; mxnManual=!!p.precio;
+  const pr=(col&&col.precio)||p.precio;
+  $('#tUsd').value=(col&&col.costoUsd)||p.costoUsd||''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
   $('#tLink').value=p.link||'';
   const e=estadoDe(p);
   $('#tOrdena').checked=e.b!=='disponible';
@@ -629,7 +633,7 @@ $('#btnACat').addEventListener('click',async()=>{
   }catch(e){ toast('No se pudo guardar en el Catálogo'); }
   b.disabled=false; b.textContent='🏷️ Guardar también en mi Catálogo';
 });
-function leerCatHash(){ const m=/[#&]cat=([^&]+)/.exec(location.hash); if(!m) return; history.replaceState(null,'',location.pathname); cargarDeCatalogo(decodeURIComponent(m[1])); }
+function leerCatHash(){ const m=/[#&]cat=([^&]+)/.exec(location.hash); if(!m) return; const k=/[#&]color=([^&]+)/.exec(location.hash); history.replaceState(null,'',location.pathname); cargarDeCatalogo(decodeURIComponent(m[1]),k?decodeURIComponent(k[1]):''); }
 
 /* datos que manda la extensión de Chrome o el Atajo del iPhone */
 async function cargarURL(src){ const r=await fetch(src,{mode:'cors'}); if(!r.ok) throw 0; const b=await r.blob(); return cargarArchivo(b); }

@@ -834,7 +834,7 @@ function renderCat(){
   $('#catList').innerHTML=rows.map((x,i)=>{ const f=catFoto(x.p,x.c.k);
     return '<div class="row" data-ci="'+i+'">'+(f?'<img class="th" src="'+catURL(f)+'" alt="">':'<span class="th"></span>')+
       '<button type="button" class="open" data-ci="'+i+'"><b>'+esc(x.p.nombre||'Sin nombre')+(x.c.nombre&&(x.p.colores||[]).length>1?' · '+esc(x.c.nombre):'')+'</b><small>'+esc([x.p.marca,{early:'Early Access',preventa:'Preventa',camino:'En camino',disponible:'Disponible'}[x.p.estado]].filter(Boolean).join(' · '))+'</small></button>'+
-      '<div class="side"><span class="amt">'+money(x.p.precio)+'</span></div></div>'; }).join('');
+      '<div class="side"><span class="amt">'+money(x.c.precio||x.p.precio)+'</span></div></div>'; }).join('');
   catRows=rows;
 }
 let catRows=[];
@@ -860,7 +860,7 @@ $('#catBack').addEventListener('click',()=>{ $('#catPick').hidden=true; $('#catL
 $('#catTallas').addEventListener('click',async e=>{
   const b=e.target.closest('[data-ct]'); if(!b||!catSel||!cur) return;
   const {p,c}=catSel, f=catFoto(p,c.k);
-  const it=Object.assign(blankItem(),{nombre:(p.nombre||'')+(c.nombre&&(p.colores||[]).length>1?' – '+c.nombre:''),desc:[p.descripcion,(p.colores||[]).length<=1?c.nombre:''].filter(Boolean).join(' · '),talla:b.dataset.ct,precio:p.precio?String(p.precio):''});
+  const it=Object.assign(blankItem(),{nombre:(p.nombre||'')+(c.nombre&&(p.colores||[]).length>1?' – '+c.nombre:''),desc:[p.descripcion,(p.colores||[]).length<=1?c.nombre:''].filter(Boolean).join(' · '),talla:b.dataset.ct,precio:(c.precio||p.precio)?String(c.precio||p.precio):''});
   if(f){ try{ const sm=await compress(f.blob,520,.72); it.foto={data:await toDataURL(sm.blob),zoom:1,x:.5,y:.5}; }catch(err){} }
   const last=cur.items[cur.items.length-1];
   if(last&&!last.nombre&&!num(last.precio)&&!last.foto) cur.items[cur.items.length-1]=it; else cur.items.push(it);

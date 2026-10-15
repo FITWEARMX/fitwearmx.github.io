@@ -239,6 +239,12 @@ label>input,label>textarea,label>select{margin-top:6px}
         <div class="calc" id="pCalc"></div>
         <div class="gan" id="pGan"></div>
       </div>
+      <div class="price-box" id="pColorBox" hidden>
+        <span class="lbl" style="display:block;margin:0 0 6px">Precio por color</span>
+        <div class="chips" id="pColores" style="margin-bottom:10px"></div>
+        <label style="margin:0">Costo en dólares de <b id="pColorName"></b> <span class="opt">(vacío = el de arriba)</span><input id="pColorUsd" inputmode="decimal" autocomplete="off"></label>
+        <div class="calc" id="pColorCalc"></div>
+      </div>
       <div class="grid2">
         <label>Precio a mano <span class="opt">(opcional)</span><input data-f="precioManual" inputmode="decimal" placeholder="Usa el calculado" autocomplete="off"></label>
         <label>Precio de oferta <span class="opt">(opcional)</span><input data-f="oferta" inputmode="decimal" placeholder="Sin oferta" autocomplete="off"></label>
@@ -414,6 +420,12 @@ function precioCalc(p){
 }
 function precioDe(p){ return has(p.precioManual)?num(p.precioManual):precioCalc(p); }
 function precioVenta(p){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):precioDe(p); }
+/* Precio de un color: si el color tiene su propio costo en dólares se calcula con él; si no, usa el del producto */
+function precioColorBase(p,c){ return c&&has(c.costoUsd)?precioCalc(Object.assign({},p,{costoUsd:c.costoUsd})):precioDe(p); }
+function precioColor(p,c){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):precioColorBase(p,c); }
+function rangoPrecios(p){ const v=(p.colores||[]).map(c=>precioColor(p,c)).filter(x=>x>0); return v.length?[Math.min(...v),Math.max(...v)]:[precioVenta(p),precioVenta(p)]; }
+function sellarPrecios(p){ let cambio=false; const nv=precioVenta(p); if(nv!==p.precio){ p.precio=nv; cambio=true; }
+  (p.colores||[]).forEach(c=>{ const v=precioColor(p,c); if(v!==c.precio){ c.precio=v; cambio=true; } }); return cambio; }
 
 /* ---------- almacenamiento (IndexedDB) ---------- */
 let db=null;
@@ -529,11 +541,11 @@ function rowHTML(p){
   if(poco(p)) pills.push('<span class="pill low">Poco inventario</span>');
   if(p.destacado) pills.push('<span class="pill">⭐</span>');
   const sz=t.size?[...t].map(([k,v])=>k+(v>1?'·'+v:'')).join('  '):(['disponible','agotado'].includes(p.estado)?'Sin piezas':'');
-  const precio=precioVenta(p), base=precioDe(p), of=has(p.oferta)&&num(p.oferta)>0&&num(p.oferta)<base;
+  const precio=precioVenta(p), base=precioDe(p), of=has(p.oferta)&&num(p.oferta)>0&&num(p.oferta)<base, rg=rangoPrecios(p);
   const colores=(p.colores||[]).filter(c=>c.nombre).length;
   return '<button type="button" class="row" data-id="'+esc(p.id)+'"><div class="th">'+(u?'<img src="'+u+'" alt="">':'Sin foto')+'</div>'+
     '<div style="min-width:0"><b>'+esc((p.nombre||'').trim()||'Sin nombre')+'</b><small>'+esc([p.linea?LINEA_TXT[p.linea]:'',p.marca,colores>1?colores+' colores':(p.colores[0]&&p.colores[0].nombre)].filter(Boolean).join(' · '))+(sz?' · '+esc(sz):'')+'</small><div class="pills">'+pills.join('')+'</div></div>'+
-    '<div class="pr">'+(precio?money(precio):'—')+(of?'<s>'+money(base)+'</s>':'')+'</div></button>';
+    '<div class="pr">'+(rg[1]>rg[0]?'<small style="font-weight:500">Desde</small> '+money(rg[0]):precio?money(precio):'—')+(of?'<s>'+money(base)+'</s>':'')+'</div></button>';
 }
 function renderList(){
   const q=($('#q').value||'').toLowerCase().trim();
@@ -604,7 +616,7 @@ if(CFG.demo) $('#btnHistoria').hidden=true;
 $('#btnHistoria').addEventListener('click',async()=>{
   if(!cur) return; dirty=true; await guardar(true);
   if(!saved){ toast('Ponle nombre o una foto al producto primero'); return; }
-  location.href='../historias/#cat='+encodeURIComponent(cur.id);
+  location.href='../historias/#cat='+encodeURIComponent(cur.id)+(cur.colores.length>1?'&color='+encodeURIComponent(curColor):'');
 });
 $('#btnNuevo').addEventListener('click',nuevo);
 
@@ -616,7 +628,7 @@ async function guardar(force){
   if(!saved&&vacio(cur)){ if(force) setSave('',''); return; }
   dirty=false;
   try{
-    cur.precio=precioVenta(cur);
+    sellarPrecios(cur);
     const data=JSON.parse(JSON.stringify(cur));
     await put('productos',data); saved=true; askPersist();
     const i=productos.findIndex(p=>p.id===data.id); if(i<0) productos.push(data); else productos[i]=data;
@@ -720,7 +732,18 @@ function renderPrecio(){
   $('#pCalc').textContent=num(cur.costoUsd)?('$'+num(cur.costoUsd)+' × '+num(AJ.tc)+' × '+(1+m/100).toFixed(2)+' = '+money(calc)+(has(cur.precioManual)?' (usando precio a mano)':'')):'Pon el costo en dólares para calcular el precio.';
   const costoMx=num(cur.costoUsd)*num(AJ.tc);
   $('#pGan').innerHTML=costoMx&&venta?('Te deja <b>'+money(venta-costoMx)+'</b> por pieza <span style="color:var(--muted)">(de ahí sale la importación)</span>'):'';
+  // Precio por color
+  const col=cur.colores.find(c=>c.k===curColor)||cur.colores[0], varios=cur.colores.length>1;
+  $('#pColorBox').hidden=!varios&&!has(col.costoUsd);
+  $('#pColores').innerHTML=varios?cur.colores.map(c=>'<button type="button" class="chip'+(c.k===col.k?' on':'')+'" data-pcolor="'+c.k+'">'+esc(c.nombre||'Sin color')+' · '+(precioColor(cur,c)?money(precioColor(cur,c)):'—')+'</button>').join(''):'';
+  $('#pColorName').textContent=col.nombre||'este color';
+  if(document.activeElement!==$('#pColorUsd')) $('#pColorUsd').value=col.costoUsd||'';
+  $('#pColorUsd').placeholder=num(cur.costoUsd)?String(num(cur.costoUsd))+' (el de arriba)':'Igual que arriba';
+  const cb=precioColorBase(cur,col), cv=precioColor(cur,col);
+  $('#pColorCalc').textContent=has(col.costoUsd)?('$'+num(col.costoUsd)+' × '+num(AJ.tc)+' × '+(1+m/100).toFixed(2)+' = '+money(cb)+(cv<cb?' · con oferta: '+money(cv):'')):(cv?'Usa el precio de arriba: '+money(cv):'');
 }
+$('#pColorUsd').addEventListener('input',e=>{ const col=cur.colores.find(c=>c.k===curColor)||cur.colores[0]; col.costoUsd=e.target.value.trim(); renderPrecio(); cambio(); });
+$('#pColores').addEventListener('click',e=>{ const b=e.target.closest('[data-pcolor]'); if(!b) return; curColor=b.dataset.pcolor; renderColores(); renderFotos(); renderTallas(); });
 
 /* colores */
 function renderColores(){
@@ -728,6 +751,7 @@ function renderColores(){
     '<button type="button" class="chip" id="addColor">+ Color</button>'+
     '<button type="button" class="x" id="renColor" style="color:var(--blue)">Nombre del color</button>'+
     (cur.colores.length>1?'<button type="button" class="x" id="delColor">Quitar color</button>':'');
+  renderPrecio();
 }
 $('#colores').addEventListener('click',async e=>{
   const c=e.target.closest('[data-color]');
@@ -904,7 +928,8 @@ function mensaje(nombre,g){
   const nm=(nombre||'').trim().split(/\s+/)[0]||'';
   const prod=(cur.nombre||'').trim()+(cur.marca?' de '+cur.marca:'');
   const det=[g&&g.colorK&&cur.colores.length>1?nombreColor(cur,g.colorK):'',g&&g.talla?'talla '+g.talla:''].filter(Boolean).join(', ');
-  const precio=precioVenta(cur)?' Precio: '+money(precioVenta(cur))+' MXN.':'';
+  const pc=precioColor(cur,(g&&g.colorK&&cur.colores.find(c=>c.k===g.colorK))||cur.colores.find(c=>c.k===curColor));
+  const precio=pc?' Precio: '+money(pc)+' MXN.':'';
   const intro={early:'¡ya salió el drop de '+prod,preventa:'abrí preventa de '+prod,camino:'ya viene en camino '+prod,disponible:'ya tengo disponible '+prod,agotado:'te aviso de '+prod}[B(cur)];
   return 'Hola'+(nm?' '+nm:'')+', '+intro+(det?' ('+det+')':'')+(B(cur)==='early'?'!':'.')+precio+(g&&g.tipo==='apartado'?' Ya lo tienes apartado 🙌':' ¿Te lo aparto?');
 }
@@ -952,7 +977,8 @@ async function imagenProducto(){
   d.textBaseline='top'; d.textAlign='left';
   d.fillStyle='#96969b'; d.font='500 34px '+FF; d.fillText((cur.marca||'').toUpperCase(),60,980);
   const n=(cur.nombre||'').trim()||'Producto', z=fitText(d,n,W-120,60,36,'700'); d.fillStyle='#f5f5f5'; d.font='700 '+z+'px '+FF; d.fillText(n,60,1025);
-  const v=precioVenta(cur), base=precioDe(cur);
+  const colP=cur.colores.find(x=>x.k===curColor)||cur.colores[0];
+  const v=precioColor(cur,colP), base=precioColorBase(cur,colP);
   if(v){ d.fillStyle='#46c86e'; d.font='800 84px '+FF; d.fillText(money(v)+' MXN',60,1110);
     if(v<base){ const w=d.measureText(money(v)+' MXN').width; d.fillStyle='#69696e'; d.font='500 44px '+FF; const tx=money(base); d.fillText(tx,60+w+30,1140); const tw=d.measureText(tx).width; d.fillRect(60+w+30,1166,tw,4); } }
   const col=cur.colores.find(x=>x.k===curColor)||cur.colores[0];
@@ -997,7 +1023,7 @@ $('#ajGuardar').addEventListener('click',async()=>{
   if(!(tc>0)){ toast('Pon un tipo de cambio válido'); return; }
   AJ.tc=tc; AJ.margen=m; AJ.red=num($('#ajRed').value)||1; guardarAjustes();
   // recalcula y guarda el precio de todos los productos
-  for(const p of productos){ const nv=precioVenta(p); if(nv!==p.precio){ p.precio=nv; try{ await put('productos',p); }catch(e){} } }
+  for(const p of productos){ if(sellarPrecios(p)){ try{ await put('productos',p); }catch(e){} } }
   $('#aj').hidden=true; renderList(); toast('Ajustes guardados: precios actualizados');
 });
 
@@ -1036,14 +1062,16 @@ async function armarTienda(){
   const fotos=await getAll('fotos');
   const lista=[], usadas=[];
   for(const p of pubs){
-    const colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',tallas:Object.assign({},c.tallas||{}),fotos:[]}));
+    const colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),fotos:[]}));
     const fs=fotos.filter(f=>f.productoId===p.id).sort((a,b)=>(a.fecha||0)-(b.fecha||0));
     if(p.portada){ const i=fs.findIndex(f=>f.id===p.portada); if(i>0) fs.unshift(fs.splice(i,1)[0]); }
     for(const f of fs){
       const c=colores.find(x=>x.k===f.colorK)||colores[0]; if(!c) continue;
       const path='fotos/'+f.id+'.jpg'; c.fotos.push(path); usadas.push({path,blob:f.blob});
     }
-    const base=precioDe(p), venta=precioVenta(p);
+    // el precio del producto es el del color más barato (la tienda dice "Desde" si varían)
+    const barato=colores.filter(c=>c.precio>0).sort((a,b)=>a.precio-b.precio)[0];
+    const base=barato?barato.precioBase:precioDe(p), venta=barato?barato.precio:precioVenta(p);
     lista.push({id:p.id,nombre:(p.nombre||'').trim(),marca:(p.marca||'').trim(),categoria:p.categoria||'',linea:p.linea||'',descripcion:(p.descripcion||'').trim(),
       estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
       precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
