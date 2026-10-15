@@ -134,8 +134,10 @@ label>input,label>select{margin-top:6px}
 
       <section class="card">
         <h2>3. Estilo</h2>
+        <p class="note" style="margin:-4px 0 10px">📌 Tu estilo se guarda solo: lo que elijas aquí se usa en todas las historias nuevas, también las que manda la extensión.</p>
         <p class="note" style="margin:0 0 6px">Franja</p><div class="chips" id="estilos"></div>
         <p class="note" style="margin:14px 0 6px">Acomodo</p><div class="chips" id="flotas"></div>
+        <p class="note" style="margin:14px 0 6px">Fotos (para todas)</p><div class="chips" id="modosTodos"></div>
         <label style="margin-top:14px">Tamaño de la franja: <b id="tamTxt">100%</b><input type="range" id="tamFranja" min="70" max="150" step="5" value="100" style="width:100%;min-height:0;padding:0"></label>
         <div id="fuenteBox"><p class="note" style="margin:14px 0 6px">Tipo de letra</p><div class="chips" id="fuentes"></div></div>
         <div id="colBox"><p class="note" style="margin:14px 0 6px">Colores (letras, fondo y etiqueta)</p><div class="chips" id="paletas"></div>
@@ -153,6 +155,7 @@ label>input,label>select{margin-top:6px}
       <section class="card" id="colaBox" hidden>
         <h2>Listas para subir <span id="colaN" style="color:var(--muted);font-weight:500"></span></h2>
         <div class="cola" id="cola"></div>
+        <button type="button" class="btn ghost full" id="btnRestyle" style="margin-top:12px">🎨 Aplicar mi estilo actual a toda la lista</button>
         <p class="note">Al guardarlas se van a tu carrete y las subes juntas a Instagram.</p>
       </section>
     </div>
@@ -379,9 +382,9 @@ function dibujar(canvas,o){
   const n=o.diseno==='4'?4:o.diseno==='3'?3:o.diseno==='2'?2:1;
   const bg=o.estilo==='blanco'?'#f2f2f2':'#ececec';
   const poner=(i,x,y,w,h)=>{ const im=fotos[i]; if(!im){ d.fillStyle='#e5e5e5'; d.fillRect(x,y,w,h); return; }
-    const a=aj[i]||{};
+    const a=aj[i]||{}, modo=a.modo||o.modoFoto||''; // lo de cada foto manda; si no, el de "Fotos" en Estilo
     // automático: si llenar el espacio cortaría más de un tercio de la foto, se muestra completa
-    const completa=a.modo==='completa'||(a.modo!=='llenar'&&(o.completa||recorte(im,w,h)>.33));
+    const completa=modo==='completa'||(modo!=='llenar'&&(o.completa||recorte(im,w,h)>.33));
     if(completa) contain(d,im,x,y,w,h,colorFondo(im)); else cover(d,im,x,y,w,h,a); };
   if(o.flota){ // las fotos llenan toda la historia y la franja flota encima (no se achican las fotos)
     const g=GAP, mh=H/2;
@@ -430,7 +433,7 @@ if(!AJ){ AJ={tc:18,margen:60,red:10}; try{ Object.assign(AJ,JSON.parse(localStor
 function pesos(usd){ const v=num(usd)*num(AJ.tc)*(1+num(AJ.margen)/100), r=num(AJ.red)||1; return v?Math.ceil(v/r-1e-9)*r:0; }
 
 /* estado de la historia actual */
-const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true,paleta:'facturas',flota:true,fuente:'sans',tamano:100},LS.get('estilo',{}));
+const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true,paleta:'facturas',flota:true,fuente:'sans',tamano:100,modoFoto:''},LS.get('estilo',{}));
 let fotos=[null,null,null,null], ajustes=[{},{},{},{}], sel=-1, cola=[], mxnManual=false;
 const marca={negro:new Image(),crema:new Image()}; marca.negro.src=LOGO_NEGRO; marca.crema.src=LOGO_CREMA;
 
@@ -464,6 +467,7 @@ function pintarOpciones(){
   chips($('#disenos'),[['4','4 fotos'],['3','3 fotos'],['2','2 fotos'],['1','1 foto']],st.diseno,'dis');
   chips($('#estilos'),[['factura','Como mis facturas'],['cristal','Cristal (tipo iPhone)'],['blanco','Blanca'],['negro','Negra']],st.estilo,'est');
   $('#tamFranja').value=st.tamano||100; $('#tamTxt').textContent=(st.tamano||100)+'%';
+  chips($('#modosTodos'),[['','Automático'],['llenar','Llenar el cuadro'],['completa','Foto completa']],st.modoFoto||'','mt');
   chips($('#flotas'),[['si','Fotos completas, franja flotante'],['no','Franja entre las fotos']],st.flota===false?'no':'si','flo');
   chips($('#fuentes'),[['sans','Moderna'],['redonda','Redonda'],['condensada','Angosta'],['impacto','Impacto'],['serif','Elegante'],['mono','Máquina']],st.fuente||'sans','fue');
   chips($('#etqEst'),[['franja','Dentro de la franja'],['negro','Abajo, negra'],['azul','Abajo, azul']],st.etq,'etqe');
@@ -485,7 +489,7 @@ function opciones(){
   return {diseno:st.diseno,fotos:fotos.slice(0,n()),ajustes:ajustes.slice(0,n()),estilo:st.estilo,
     linea1:$('#tLinea1').value.trim(),titulo:$('#tTitulo').value.trim().toUpperCase(),precio:precioTxt(),precioAntes:antesTxt(),
     ordena:ordenaTxt(),linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
-    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100};
+    marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100,modoFoto:st.modoFoto||''};
 }
 // Anticipo para ordenar: 25% del precio en pesos, redondeado hacia arriba a decenas (igual que la tienda)
 function ordenaTxt(){ const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
@@ -526,6 +530,7 @@ document.addEventListener('click',e=>{
   const es=e.target.closest('[data-est]'); if(es){ st.estilo=es.dataset.est;
     if(st.estilo==='cristal'&&!/^cristal|^personal/.test(st.paleta)) st.paleta='cristal'; // el cristal se ve mejor con su paleta
     LS.set('estilo',st); pintarOpciones(); previa(); return; }
+  const mt=e.target.closest('[data-mt]'); if(mt){ st.modoFoto=mt.dataset.mt; ajustes.forEach(a=>{ delete a.modo; }); LS.set('estilo',st); pintarOpciones(); pintarSlots(); previa(); return; }
   const fl=e.target.closest('[data-flo]'); if(fl){ st.flota=fl.dataset.flo==='si'; LS.set('estilo',st); pintarOpciones(); previa(); return; }
   const fu=e.target.closest('[data-fue]'); if(fu){ st.fuente=fu.dataset.fue; LS.set('estilo',st); pintarOpciones(); previa(); return; }
   const pl=e.target.closest('[data-pal]'); if(pl){ if(pl.dataset.pal==='personal'&&st.paleta!=='personal') st.colores=Object.assign({},colores()); st.paleta=pl.dataset.pal; LS.set('estilo',st); chipsPaleta(); previa(); return; }
@@ -549,12 +554,30 @@ function pintarCola(){
   $('#cola').innerHTML=cola.map((c,i)=>'<div class="h"><img src="'+c.url+'" alt="Historia '+(i+1)+'"><button type="button" data-borrar="'+i+'" aria-label="Quitar">×</button></div>').join('');
   const b=$('#btnGuardar'); b.hidden=!cola.length; b.textContent='Guardar ('+cola.length+')';
 }
+/* Le pone el estilo de ahorita (franja, colores, letra, tamaño, acomodo, fotos y logo) a todas las historias de la lista */
+const CLAVES_ESTILO=['estilo','flota','fuente','tamano','colores','etqEstilo','marca','marcaPos','modoFoto'];
+$('#btnRestyle').addEventListener('click',async()=>{
+  if(!cola.length) return;
+  const b=$('#btnRestyle'), ahora=opciones(), nuevo={}; CLAVES_ESTILO.forEach(k=>{ nuevo[k]=ahora[k]; });
+  b.disabled=true;
+  for(let i=0;i<cola.length;i++){
+    const c=cola[i]; if(!c.o) continue;
+    b.textContent='Aplicando… '+(i+1)+' de '+cola.length;
+    c.o=Object.assign({},c.o,nuevo);
+    if(c.o.ajustes) c.o.ajustes=c.o.ajustes.map(a=>{ const x=Object.assign({},a); if(ahora.modoFoto) delete x.modo; return x; });
+    const cv=document.createElement('canvas'); Historia.dibujar(cv,c.o);
+    const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.93));
+    URL.revokeObjectURL(c.url); c.blob=blob; c.url=URL.createObjectURL(blob);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  b.disabled=false; b.textContent='🎨 Aplicar mi estilo actual a toda la lista'; pintarCola(); toast('Listo: '+cola.length+(cola.length===1?' historia':' historias')+' con tu estilo');
+});
 $('#cola').addEventListener('click',e=>{ const b=e.target.closest('[data-borrar]'); if(!b) return; const c=cola.splice(+b.dataset.borrar,1)[0]; URL.revokeObjectURL(c.url); pintarCola(); });
 $('#btnAgregar').addEventListener('click',async()=>{
   if(!fotos.slice(0,n()).some(Boolean)){ toast('Primero pon al menos una foto'); return; }
   const c=document.createElement('canvas'); Historia.dibujar(c,opciones());
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.93));
-  cola.push({blob,url:URL.createObjectURL(blob),nombre:nombreArchivo(cola.length+1)});
+  cola.push({blob,url:URL.createObjectURL(blob),nombre:nombreArchivo(cola.length+1),o:(o=>Object.assign(o,{ajustes:o.ajustes.map(x=>Object.assign({},x))}))(opciones())});
   pintarCola(); toast('Agregada · '+cola.length+(cola.length===1?' historia lista':' historias listas'));
   window.scrollTo({top:0,behavior:'smooth'});
 });
