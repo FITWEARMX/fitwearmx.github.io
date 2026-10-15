@@ -121,6 +121,7 @@ label>input,label>select{margin-top:6px}
           <label>Precio en pesos<input id="tMxn" inputmode="decimal" placeholder="Se calcula solo" autocomplete="off"></label>
         </div>
         <p class="calc" id="calc"></p>
+        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tOrdena" checked style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span id="tOrdenaTxt">Poner “Ordena con $… MXN · tienes 3 semanas para liquidar”</span></label>
         <label>Descripción <span class="opt">(opcional)</span><input id="tDesc" placeholder="ordena con $500 · líquidas en 2 semanas" autocomplete="off"></label>
         <div class="chips frases" id="frases"></div>
         <label>Etiqueta <span class="opt">(opcional)</span><input id="tEtiqueta" placeholder="PREVIEW RESTOCK 13 de octubre" autocomplete="off"></label>
@@ -251,6 +252,7 @@ function armarFranja(d,o){
     while(z>40&&d.measureText(tit).width>max){ z-=2; d.font='700 '+z+'px '+MONO; }
     wrap(d,tit,max).forEach(l=>filas.push({t:l,f:'700 '+z+'px '+MONO,h:z*1.18}));
   }
+  if(o.ordena){ d.font='700 34px '+MONO; wrap(d,o.ordena,max).forEach(l=>filas.push({t:l,f:'700 34px '+MONO,h:46})); }
   if(o.linea3){ d.font='500 36px '+MONO; wrap(d,o.linea3,max).forEach(l=>filas.push({t:l,f:'500 36px '+MONO,h:46})); }
   const alto=filas.reduce((a,f)=>a+f.h,0)+(filas.length?52:0);
   return {filas,alto};
@@ -266,6 +268,7 @@ function franjaFactura(d,o){
     if(medir()<=max) filas.push({tipo:'tit',tit,pre,z,h:z*1.2});
     else { d.font='800 '+z+'px '+SANS; wrap(d,tit,max).forEach(l=>filas.push({tipo:'tit',tit:l,pre:'',z,h:z*1.2})); if(pre) filas.push({tipo:'tit',tit:'',pre,z,h:z*1.2}); }
   }
+  if(o.ordena){ d.font='700 36px '+SANS; wrap(d,o.ordena,max).forEach(l=>filas.push({tipo:'ord',t:l,f:'700 36px '+SANS,h:50})); }
   if(o.linea3){ d.font='500 34px '+SANS; wrap(d,o.linea3,max).forEach(l=>filas.push({tipo:'l3',t:l,f:'500 34px '+SANS,h:46})); }
   return {filas,alto:filas.reduce((a,f)=>a+f.h,0)+(filas.length?70:0),factura:true};
 }
@@ -285,7 +288,7 @@ function pintarFactura(d,y,fr,o){
       d.font='800 '+f.z+'px '+SANS; const a=d.measureText(f.tit).width, b=f.pre?d.measureText((f.tit?'  ':'')+f.pre).width:0, x0=(W-a-b)/2;
       d.textAlign='left'; d.fillStyle=C.titulo; d.fillText(f.tit,x0,mid); if(f.pre){ d.fillStyle=C.precio; d.fillText((f.tit?'  ':'')+f.pre,x0+a,mid); }
     } else if(f.tipo==='etq'){ d.font=f.f; const tw=d.measureText(f.t).width+40, x=(W-tw)/2; rr(d,x,mid-21,tw,42,21); d.fillStyle=alfa(C.etiqueta,.18); d.fill(); d.fillStyle=C.etiqueta; d.textAlign='center'; d.fillText(f.t,W/2,mid+1); }
-    else { d.font=f.f; d.textAlign='center'; d.fillStyle=f.tipo==='l1'?alfa(C.desc,.75):C.desc; d.fillText(f.t,W/2,mid); }
+    else { d.font=f.f; d.textAlign='center'; d.fillStyle=f.tipo==='ord'?C.precio:f.tipo==='l1'?alfa(C.desc,.75):C.desc; d.fillText(f.t,W/2,mid); }
     cy+=f.h;
   });
 }
@@ -426,9 +429,13 @@ function pintarSlots(){
 function opciones(){
   return {diseno:st.diseno,fotos:fotos.slice(0,n()),ajustes:ajustes.slice(0,n()),estilo:st.estilo,
     linea1:$('#tLinea1').value.trim(),titulo:$('#tTitulo').value.trim().toUpperCase(),precio:precioTxt(),
-    linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
+    ordena:ordenaTxt(),linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
     marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:st.estilo==='factura'?st.etq:'rojo',colores:colores()};
 }
+// Anticipo para ordenar: 25% del precio en pesos, redondeado hacia arriba a decenas (igual que la tienda)
+function ordenaTxt(){ const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
+  if(a) $('#tOrdenaTxt').textContent='Poner “Ordena con $'+a+' MXN · tienes 3 semanas para liquidar”';
+  return $('#tOrdena').checked&&a?'Ordena con $'+a+' MXN · tienes 3 semanas para liquidar':''; }
 function precioTxt(){ const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
 let raf=0;
 function previa(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>Historia.dibujar($('#pv'),opciones())); }
@@ -468,6 +475,7 @@ document.addEventListener('click',e=>{
   const et=e.target.closest('[data-etq]'); if(et){ $('#tEtiqueta').value=et.dataset.etq; previa(); return; }
 });
 ['tLinea1','tTitulo','tDesc','tEtiqueta'].forEach(id=>$('#'+id).addEventListener('input',previa));
+$('#tOrdena').addEventListener('change',previa);
 [['cTit','titulo'],['cPre','precio'],['cDes','desc'],['cFon','fondo'],['cEtq','etiqueta']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ st.colores=Object.assign({},st.colores||{},{[k]:$('#'+id).value}); LS.set('estilo',st); previa(); }));
 $('#tUsd').addEventListener('input',()=>{ calcular(); previa(); });
 $('#tMxn').addEventListener('input',()=>{ mxnManual=$('#tMxn').value.trim()!==''; calcular(); previa(); });
@@ -580,6 +588,7 @@ async function cargarDeCatalogo(id){
   $('#tUsd').value=p.costoUsd||''; $('#tMxn').value=p.precio?Math.round(p.precio):''; mxnManual=!!p.precio;
   $('#tLink').value=p.link||'';
   const e=estadoDe(p);
+  $('#tOrdena').checked=e.b!=='disponible';
   if(e.b==='disponible'){
     const ts=new Set(); (p.colores||[]).forEach(c=>Object.entries(c.tallas||{}).forEach(([t,n])=>{ if(+n>0) ts.add(t); }));
     $('#tDesc').value=ts.size?'Tallas '+[...ts].join(' · ')+' · entrega inmediata':'entrega inmediata';
@@ -630,6 +639,7 @@ async function recibirProducto(d){
   if(d.nombre) $('#tTitulo').value=String(d.nombre).replace(/^\s*\d+\s*-\s*/,'').toUpperCase();
   if(d.precioUsd){ $('#tUsd').value=num(d.precioUsd); mxnManual=false; }
   if(d.url) $('#tLink').value=d.url;
+  $('#tOrdena').checked=true;
   origen=null; notaCat();
   calcular();
   const srcs=(d.fotos||[]).slice(0,n()); let ok=0;
