@@ -752,7 +752,7 @@ function colorPrincipal(){ const f=cur.portada&&curFotos.find(x=>x.id===cur.port
 function hacerPortada(f){ cur.portada=f.id; dirty=true; renderColores(); renderFotos(); cambio(); toast('Listo: ese es tu color principal. Dale “Publicar tienda” para verlo.'); }
 function renderColores(){
   const princ=colorPrincipal();
-  $('#colores').innerHTML=cur.colores.map(c=>'<button type="button" class="chip'+(c.k===curColor?' on':'')+'" data-color="'+c.k+'">'+(cur.colores.length>1&&c.k===princ?'⭐ ':'')+esc(c.nombre||'Sin color')+'</button>').join('')+
+  $('#colores').innerHTML=cur.colores.map(c=>'<button type="button" class="chip'+(c.k===curColor?' on':'')+'" data-color="'+c.k+'">'+(cur.colores.length>1&&c.k===princ?'⭐ ':'')+esc(c.nombre||'Sin color')+(c.agotado?' · Agotado':'')+'</button>').join('')+
     '<button type="button" class="chip" id="addColor">+ Color</button>'+
     (cur.colores.length>1&&curColor!==princ?'<button type="button" class="x" id="princColor" style="color:var(--green)">⭐ Hacer color principal</button>':'')+
     '<button type="button" class="x" id="renColor" style="color:var(--blue)">Nombre del color</button>'+
@@ -1070,10 +1070,12 @@ async function armarTienda(){
   const fotos=await getAll('fotos');
   const lista=[], usadas=[];
   for(const p of pubs){
-    let colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),fotos:[]}));
+    let colores=(p.colores||[]).map(c=>({k:c.k,nombre:c.nombre||'',precio:precioColor(p,c),precioBase:precioColorBase(p,c),tallas:Object.assign({},c.tallas||{}),agotadas:(c.agotadas||[]).slice(),agotado:!!c.agotado,fotos:[]}));
     // Color principal (el que se ve en la tienda): el de tu foto de portada; si no hay, el negro; si no, el primero
     const fPort=p.portada&&fotos.find(f=>f.id===p.portada);
-    const principal=(fPort&&colores.find(c=>c.k===fPort.colorK))||colores.find(c=>/black|negro/i.test(c.nombre))||colores[0];
+    // (si ese color está agotado en la marca, se usa otro que sí haya)
+    const vivos=colores.filter(c=>!c.agotado);
+    const principal=(fPort&&vivos.find(c=>c.k===fPort.colorK))||vivos.find(c=>/black|negro/i.test(c.nombre))||vivos[0]||colores[0];
     if(principal) colores=[principal].concat(colores.filter(c=>c!==principal));
     const fs=fotos.filter(f=>f.productoId===p.id).sort((a,b)=>(a.fecha||0)-(b.fecha||0));
     if(p.portada){ const i=fs.findIndex(f=>f.id===p.portada); if(i>0) fs.unshift(fs.splice(i,1)[0]); }
