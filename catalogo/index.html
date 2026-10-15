@@ -349,6 +349,8 @@ label>input,label>textarea,label>select{margin-top:6px}
       <label>Repositorio<input id="ghRepo" autocomplete="off" autocapitalize="off"></label>
     </div>
     <label>Llave de GitHub <span class="opt">(se guarda solo en este aparato)</span><input id="ghToken" type="password" autocomplete="off" autocapitalize="off" placeholder="github_pat_…"></label>
+    <label>Contraseña del Early Access en tu tienda <span class="opt">(vacío = se ve sin contraseña)</span><input id="ghClave" autocomplete="off" autocapitalize="off" placeholder="Ej. FWMX-EA27"></label>
+    <p class="note" style="margin-top:-4px">Con contraseña, tus productos de Early Access que tengan “Mostrar en la tienda” se publican bajo llave: solo los ve quien la escriba.</p>
     <button type="button" class="btn full" id="btnPublicar">Publicar tienda</button>
     <p class="note" id="pubStatus" style="margin-top:8px"></p>
     <p class="note"><a id="pubLink" target="_blank" rel="noopener" style="color:var(--blue)"></a></p>
@@ -1041,21 +1043,28 @@ $('#ajGuardar').addEventListener('click',async()=>{
 
 /* ---------- publicar la tienda en GitHub ---------- */
 const GH_KEY=CFG.db+'_github';
-let GH={user:'FITWEARMX',repo:'tienda',token:''};
+let GH={user:'FITWEARMX',repo:'tienda',token:'',clave:''};
 try{ Object.assign(GH,JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){}
 function pintarGH(){
-  $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token;
+  $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token; $('#ghClave').value=GH.clave||'';
   const url='https://'+GH.user.toLowerCase()+'.github.io/'+GH.repo+'/';
   $('#pubLink').href=url; $('#pubLink').textContent='Ver mi tienda: '+url.replace('https://','');
   if(CFG.demo){ $('#btnPublicar').disabled=true; $('#pubStatus').textContent='En la versión de prueba no se publica nada.'; }
 }
-function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
-async function gh(path,opt){
-  opt=opt||{};
+function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); GH.clave=$('#ghClave').value.trim(); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
+const dormir=ms=>new Promise(r=>setTimeout(r,ms));
+async function gh(path,opt,intento){
+  opt=opt||{}; intento=intento||0;
   const r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',
     headers:Object.assign({'Authorization':'Bearer '+GH.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{}),
     body:opt.body?JSON.stringify(opt.body):undefined});
-  if(!r.ok){ let m=''; try{ m=(await r.json()).message||''; }catch(e){} throw {status:r.status,msg:m}; }
+  if(!r.ok){ let m=''; try{ m=(await r.json()).message||''; }catch(e){}
+    // GitHub limita cuántos archivos se suben por minuto: espera lo que pida y sigue (hasta 4 veces)
+    if((r.status===429||(r.status===403&&/rate limit|abuse/i.test(m)))&&intento<4){
+      const seg=Math.max(30,+r.headers.get('retry-after')||60); const antes=$('#pubStatus').textContent;
+      for(let s=seg;s>0;s--){ estado('GitHub pidió una pausa; sigo en '+s+' s…'); await dormir(1000); }
+      estado(antes); return gh(path,opt,intento+1); }
+    throw {status:r.status,msg:m}; }
   return r.status===204?null:r.json();
 }
 function b64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
@@ -1093,7 +1102,18 @@ async function armarTienda(){
       estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
       precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
   }
-  return {datos:{actualizado:new Date().toISOString(),productos:lista},fotos:usadas};
+  const datos={actualizado:new Date().toISOString(),productos:lista};
+  // Early Access con contraseña: esos productos se publican cifrados (sin la contraseña no se pueden leer)
+  const ea=lista.filter(p=>p.estado==='early');
+  if(GH.clave&&ea.length){ datos.productos=lista.filter(p=>p.estado!=='early'); datos.privado=await cifrar(JSON.stringify(ea),GH.clave); datos.privadoN=ea.length; }
+  return {datos,fotos:usadas};
+}
+async function cifrar(texto,clave){
+  const sal=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(clave),'PBKDF2',false,['deriveKey']);
+  const k=await crypto.subtle.deriveKey({name:'PBKDF2',salt:sal,iterations:150000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt']);
+  const c=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(texto)));
+  return {sal:b64(sal),iv:b64(iv),datos:b64(c)};
 }
 function estado(t){ $('#pubStatus').textContent=t; }
 $('#btnPublicar').addEventListener('click',async()=>{
@@ -1114,7 +1134,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
       let sha=ya&&ya.sha;
-      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; }
+      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(1100); } // sin pasar de ~50 fotos por minuto
       entradas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
     entradas.push({path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)});
@@ -1122,7 +1142,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
     const nuevo=await gh('/git/trees',{method:'POST',body:{tree:entradas}});
     const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref.object.sha]}});
     await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}});
-    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+'. Tu tienda se actualiza en 1 o 2 minutos.');
+    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privadoN?' + '+datos.privadoN+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
     toast('Tienda publicada');
   }catch(e){
     const s=e&&e.status;
@@ -1130,7 +1150,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       (s===403||s===404)?'No se encontró el repositorio o la llave no tiene permiso para “'+GH.repo+'”.':
       s===409?'El repositorio está vacío. Primero sube los archivos de la tienda.':
       s===422?'GitHub rechazó los cambios. Intenta de nuevo.':
-      'No se pudo publicar. Revisa tu internet e intenta de nuevo.');
+      'No se pudo publicar ('+((e&&(e.msg||e.message))||'sin conexión')+(s?' · '+s:'')+'). Revisa tu internet e intenta de nuevo.');
   }
   btn.disabled=false; btn.textContent='Publicar tienda';
 });
