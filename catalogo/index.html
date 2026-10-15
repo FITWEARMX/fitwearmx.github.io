@@ -1055,15 +1055,18 @@ function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value
 const dormir=ms=>new Promise(r=>setTimeout(r,ms));
 async function gh(path,opt,intento){
   opt=opt||{}; intento=intento||0;
-  const r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',
+  const esperar=async(seg,txt)=>{ const antes=$('#pubStatus').textContent; for(let s=seg;s>0;s--){ estado(txt+' '+s+' s…'); await dormir(1000); } estado(antes); };
+  let r;
+  try{ r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',
     headers:Object.assign({'Authorization':'Bearer '+GH.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{}),
-    body:opt.body?JSON.stringify(opt.body):undefined});
+    body:opt.body?JSON.stringify(opt.body):undefined}); }
+  catch(e){ // se cortó la conexión (o GitHub frenó sin avisar): espera y reintenta hasta 5 veces
+    if(intento<5){ await esperar(45,'Se cortó la conexión con GitHub; reintento en'); return gh(path,opt,intento+1); }
+    throw e; }
   if(!r.ok){ let m=''; try{ m=(await r.json()).message||''; }catch(e){}
     // GitHub limita cuántos archivos se suben por minuto: espera lo que pida y sigue (hasta 4 veces)
     if((r.status===429||(r.status===403&&/rate limit|abuse/i.test(m)))&&intento<4){
-      const seg=Math.max(30,+r.headers.get('retry-after')||60); const antes=$('#pubStatus').textContent;
-      for(let s=seg;s>0;s--){ estado('GitHub pidió una pausa; sigo en '+s+' s…'); await dormir(1000); }
-      estado(antes); return gh(path,opt,intento+1); }
+      await esperar(Math.max(30,+r.headers.get('retry-after')||60),'GitHub pidió una pausa; sigo en'); return gh(path,opt,intento+1); }
     throw {status:r.status,msg:m}; }
   return r.status===204?null:r.json();
 }
@@ -1134,7 +1137,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
       let sha=ya&&ya.sha;
-      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(1100); } // sin pasar de ~50 fotos por minuto
+      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
       entradas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
     entradas.push({path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)});
