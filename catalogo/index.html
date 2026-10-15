@@ -322,6 +322,7 @@ label>input,label>textarea,label>select{margin-top:6px}
   <div class="vi"><img id="vImg" alt=""></div>
   <div class="va">
     <button type="button" class="btn ghost" id="vClose">Cerrar</button>
+    <button type="button" class="btn" id="vPort">⭐ Usar de portada</button>
     <button type="button" class="btn danger" id="vDel">Borrar</button>
   </div>
 </div>
@@ -746,9 +747,14 @@ $('#pColorUsd').addEventListener('input',e=>{ const col=cur.colores.find(c=>c.k=
 $('#pColores').addEventListener('click',e=>{ const b=e.target.closest('[data-pcolor]'); if(!b) return; curColor=b.dataset.pcolor; renderColores(); renderFotos(); renderTallas(); });
 
 /* colores */
+// Color principal: el de la foto de portada. Es el que sale en la tarjeta de la tienda con su precio.
+function colorPrincipal(){ const f=cur.portada&&curFotos.find(x=>x.id===cur.portada); return f&&cur.colores.some(c=>c.k===f.colorK)?f.colorK:(cur.colores[0]||{}).k; }
+function hacerPortada(f){ cur.portada=f.id; dirty=true; renderColores(); renderFotos(); cambio(); toast('Listo: ese es tu color principal. Dale “Publicar tienda” para verlo.'); }
 function renderColores(){
-  $('#colores').innerHTML=cur.colores.map(c=>'<button type="button" class="chip'+(c.k===curColor?' on':'')+'" data-color="'+c.k+'">'+esc(c.nombre||'Sin color')+'</button>').join('')+
+  const princ=colorPrincipal();
+  $('#colores').innerHTML=cur.colores.map(c=>'<button type="button" class="chip'+(c.k===curColor?' on':'')+'" data-color="'+c.k+'">'+(cur.colores.length>1&&c.k===princ?'⭐ ':'')+esc(c.nombre||'Sin color')+'</button>').join('')+
     '<button type="button" class="chip" id="addColor">+ Color</button>'+
+    (cur.colores.length>1&&curColor!==princ?'<button type="button" class="x" id="princColor" style="color:var(--green)">⭐ Hacer color principal</button>':'')+
     '<button type="button" class="x" id="renColor" style="color:var(--blue)">Nombre del color</button>'+
     (cur.colores.length>1?'<button type="button" class="x" id="delColor">Quitar color</button>':'');
   renderPrecio();
@@ -756,6 +762,7 @@ function renderColores(){
 $('#colores').addEventListener('click',async e=>{
   const c=e.target.closest('[data-color]');
   if(c){ curColor=c.dataset.color; renderColores(); renderFotos(); renderTallas(); return; }
+  if(e.target.id==='princColor'){ const f=fotosColor()[0]; if(!f){ toast('Ponle fotos a este color primero'); return; } hacerPortada(f); return; }
   if(e.target.id==='addColor'){
     const n=(prompt('Nombre del color (ej. Negro, Vino)')||'').trim(); if(!n) return;
     const nc=blankColor(n); cur.colores.push(nc); curColor=nc.k; renderColores(); renderFotos(); renderTallas(); renderGente(); cambio(); return;
@@ -841,9 +848,10 @@ let vFoto=null, vArm=false;
 $('#fotos').addEventListener('click',e=>{
   const b=e.target.closest('[data-foto]'); if(!b) return;
   vFoto=curFotos.find(f=>f.id===b.dataset.foto); if(!vFoto) return;
-  $('#vImg').src=fotoURL(vFoto); vArm=false; $('#vDel').textContent='Borrar'; $('#viewer').hidden=false;
+  $('#vImg').src=fotoURL(vFoto); vArm=false; $('#vDel').textContent='Borrar'; $('#vPort').hidden=vFoto.id===cur.portada; $('#viewer').hidden=false;
 });
 $('#vClose').addEventListener('click',()=>{ $('#viewer').hidden=true; vFoto=null; });
+$('#vPort').addEventListener('click',()=>{ if(!vFoto) return; const f=vFoto; $('#viewer').hidden=true; vFoto=null; hacerPortada(f); });
 $('#vDel').addEventListener('click',async()=>{
   if(!vFoto) return;
   if(!vArm){ vArm=true; $('#vDel').textContent='¿Seguro?'; setTimeout(()=>{ vArm=false; if(vFoto) $('#vDel').textContent='Borrar'; },3500); return; }
