@@ -76,6 +76,7 @@ label>input,label>select{margin-top:6px}
 .cola{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
 .cola .h{position:relative;border-radius:8px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
 .cola img{width:100%;display:block;aspect-ratio:9/16;object-fit:cover}
+.cola .h.env{box-shadow:0 0 0 3px #2f6fe0}
 .cola button{position:absolute;right:4px;top:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:14px;cursor:pointer}
 .note{font-size:13px;color:var(--muted);margin:6px 0 0}
 .drawer{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45)}
@@ -156,6 +157,14 @@ label>input,label>select{margin-top:6px}
         <h2>Listas para subir <span id="colaN" style="color:var(--muted);font-weight:500"></span></h2>
         <div class="cola" id="cola"></div>
         <button type="button" class="btn ghost full" id="btnRestyle" style="margin-top:12px">🎨 Aplicar mi estilo actual a toda la lista</button>
+        <button type="button" class="btn ghost full" id="btnBajar" style="margin-top:8px">⬇️ Bajar las primeras 10 a esta computadora</button>
+        <div id="confirmaBox" hidden style="margin-top:12px;padding:14px;border-radius:14px;background:rgba(47,111,224,.1);box-shadow:inset 0 0 0 1px rgba(47,111,224,.35)">
+          <p id="confirmaTxt" style="margin:0 0 10px;font-weight:600"></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn" id="btnSiLlego">✅ Sí, ya me llegaron · quitarlas</button>
+            <button type="button" class="btn ghost" id="btnNoLlego">No, déjalas</button>
+          </div>
+        </div>
         <p class="note">Al guardarlas se van a tu carrete y las subes juntas a Instagram.</p>
       </section>
     </div>
@@ -434,7 +443,7 @@ function pesos(usd){ const v=num(usd)*num(AJ.tc)*(1+num(AJ.margen)/100), r=num(A
 
 /* estado de la historia actual */
 const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true,paleta:'facturas',flota:true,fuente:'sans',tamano:100,modoFoto:''},LS.get('estilo',{}));
-let fotos=[null,null,null,null], ajustes=[{},{},{},{}], sel=-1, cola=[], mxnManual=false;
+let fotos=[null,null,null,null], ajustes=[{},{},{},{}], sel=-1, cola=[], mxnManual=false, pendientes=0; // pendientes: las del inicio de la lista que mandaste y esperan tu confirmación
 const marca={negro:new Image(),crema:new Image()}; marca.negro.src=LOGO_NEGRO; marca.crema.src=LOGO_CREMA;
 
 /* frases guardadas */
@@ -551,7 +560,7 @@ $('#tamFranja').addEventListener('input',e=>{ st.tamano=+e.target.value; $('#tam
 function nombreArchivo(i){ const t=($('#tTitulo').value||'historia').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-|-$/g,'').slice(0,40); return (i!=null?String(i).padStart(2,'0')+'-':'')+t+'.jpg'; }
 function pintarCola(){
   $('#colaBox').hidden=!cola.length; $('#colaN').textContent='('+cola.length+')';
-  $('#cola').innerHTML=cola.map((c,i)=>'<div class="h"><img src="'+c.url+'" alt="Historia '+(i+1)+'"><button type="button" data-borrar="'+i+'" aria-label="Quitar">×</button></div>').join('');
+  $('#cola').innerHTML=cola.map((c,i)=>'<div class="h'+(i<pendientes?' env':'')+'"><img src="'+c.url+'" alt="Historia '+(i+1)+'"><button type="button" data-borrar="'+i+'" aria-label="Quitar">×</button></div>').join('');
   const b=$('#btnGuardar'); b.hidden=!cola.length; b.textContent='Guardar ('+cola.length+')';
 }
 /* Le pone el estilo de ahorita (franja, colores, letra, tamaño, acomodo, fotos y logo) a todas las historias de la lista */
@@ -572,7 +581,7 @@ $('#btnRestyle').addEventListener('click',async()=>{
   }
   b.disabled=false; b.textContent='🎨 Aplicar mi estilo actual a toda la lista'; pintarCola(); toast('Listo: '+cola.length+(cola.length===1?' historia':' historias')+' con tu estilo');
 });
-$('#cola').addEventListener('click',e=>{ const b=e.target.closest('[data-borrar]'); if(!b) return; const c=cola.splice(+b.dataset.borrar,1)[0]; URL.revokeObjectURL(c.url); pintarCola(); });
+$('#cola').addEventListener('click',e=>{ const b=e.target.closest('[data-borrar]'); if(!b) return; const i=+b.dataset.borrar; if(i<pendientes) pendientes--; if(!pendientes) $('#confirmaBox').hidden=true; const c=cola.splice(i,1)[0]; URL.revokeObjectURL(c.url); pintarCola(); });
 $('#btnAgregar').addEventListener('click',async()=>{
   if(!fotos.slice(0,n()).some(Boolean)){ toast('Primero pon al menos una foto'); return; }
   const c=document.createElement('canvas'); Historia.dibujar(c,opciones());
@@ -592,13 +601,31 @@ async function guardarArchivos(files){
   for(const f of files){ const u=URL.createObjectURL(f), a=document.createElement('a'); a.href=u; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),5000); await new Promise(r=>setTimeout(r,350)); }
   return true;
 }
+/* Las historias NO se quitan de la lista al mandarlas: el AirDrop puede fallar sin avisar.
+   Se quitan hasta que tú confirmas que ya te llegaron. */
+function pedirConfirmacion(n){
+  pendientes=n; $('#confirmaBox').hidden=false;
+  $('#confirmaTxt').textContent='¿Ya te llegaron las '+n+(n===1?' historia':' historias')+' (marcadas en azul)? Si el AirDrop falló, dale "No" y siguen aquí para mandarlas otra vez.';
+  pintarCola(); $('#confirmaBox').scrollIntoView({behavior:'smooth',block:'center'});
+}
+$('#btnSiLlego').addEventListener('click',()=>{
+  cola.slice(0,pendientes).forEach(c=>URL.revokeObjectURL(c.url)); cola=cola.slice(pendientes); pendientes=0;
+  $('#confirmaBox').hidden=true; pintarCola();
+  toast(cola.length?('Listo · faltan '+cola.length+', toca Guardar otra vez'):'Listo, ya están todas en tu carrete');
+});
+$('#btnNoLlego').addEventListener('click',()=>{ pendientes=0; $('#confirmaBox').hidden=true; pintarCola(); toast('Siguen en tu lista: mándalas otra vez cuando quieras'); });
+function lote10(){ return cola.slice(0,10).map(c=>new File([c.blob],c.nombre,{type:'image/jpeg'})); }
 $('#btnGuardar').addEventListener('click',async()=>{
   if(!cola.length) return;
-  const lote=cola.slice(0,10), files=lote.map(c=>new File([c.blob],c.nombre,{type:'image/jpeg'}));
-  if(await guardarArchivos(files)){
-    lote.forEach(c=>URL.revokeObjectURL(c.url)); cola=cola.slice(lote.length); pintarCola();
-    toast(cola.length?('Guardadas 10 · faltan '+cola.length+', toca Guardar otra vez'):'Listo, ya están en tu carrete');
-  }
+  const files=lote10();
+  if(await guardarArchivos(files)) pedirConfirmacion(files.length);
+});
+/* Plan B si el AirDrop no encuentra tu iPhone: se bajan a la carpeta de Descargas de esta computadora */
+$('#btnBajar').addEventListener('click',async()=>{
+  if(!cola.length) return;
+  const files=lote10();
+  for(const f of files){ const u=URL.createObjectURL(f), a=document.createElement('a'); a.href=u; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),5000); await new Promise(r=>setTimeout(r,350)); }
+  toast('Se bajaron a tu carpeta de Descargas'); pedirConfirmacion(files.length);
 });
 window.addEventListener('beforeunload',e=>{ if(cola.length){ e.preventDefault(); e.returnValue=''; } });
 
