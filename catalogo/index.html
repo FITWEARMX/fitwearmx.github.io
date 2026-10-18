@@ -1347,15 +1347,22 @@ $('#btnPublicar').addEventListener('click',async()=>{
       if(!sha){ const bytes=await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
       subidas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
-    // Se arma sobre la versión MÁS NUEVA de la tienda: si mientras subías fotos cambió algo (por ejemplo una mejora de la página),
-    // GitHub rechaza el cambio; entonces se vuelve a leer y se intenta otra vez, sin volver a subir las fotos.
+    estado('Guardando tus datos…');
+    const datosSha=(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(datos),encoding:'utf-8'}})).sha;
+    // Solo se manda lo que cambió (fotos nuevas, fotos que ya no se usan y los datos) sobre la versión MÁS NUEVA de la tienda.
+    // Mandar la lista completa (más de mil fotos) hacía que GitHub tardara de más y la rechazara.
+    // Si mientras subías fotos cambió algo (por ejemplo una mejora de la página), se vuelve a leer y se intenta otra vez.
     for(let vuelta=1;;vuelta++){
       estado(vuelta===1?'Guardando cambios…':'La tienda cambió mientras publicabas; lo acomodo sobre lo más nuevo…');
       const ref2=vuelta===1?ref:await gh('/git/ref/heads/main');
-      const base=vuelta===1?tree:await gh('/git/trees/'+(await gh('/git/commits/'+ref2.object.sha)).tree.sha+'?recursive=1');
-      const entradas=(base.tree||[]).filter(e=>e.type==='blob'&&!e.path.startsWith('fotos/')&&e.path!=='datos.json').map(e=>({path:e.path,mode:e.mode,type:'blob',sha:e.sha}))
-        .concat(subidas,[{path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)}]);
-      const nuevo=await gh('/git/trees',{method:'POST',body:{tree:entradas}});
+      const baseSha=vuelta===1?commit.tree.sha:(await gh('/git/commits/'+ref2.object.sha)).tree.sha;
+      const base=vuelta===1?tree:await gh('/git/trees/'+baseSha+'?recursive=1');
+      const hay=new Map((base.tree||[]).filter(e=>e.type==='blob').map(e=>[e.path,e.sha]));
+      const usa=new Set(subidas.map(x=>x.path));
+      const entradas=subidas.filter(x=>hay.get(x.path)!==x.sha)
+        .concat([...hay.keys()].filter(p=>p.startsWith('fotos/')&&!usa.has(p)).map(p=>({path:p,mode:'100644',type:'blob',sha:null}))) // fotos que ya no se usan
+        .concat(hay.get('datos.json')!==datosSha?[{path:'datos.json',mode:'100644',type:'blob',sha:datosSha}]:[]);
+      const nuevo=entradas.length?await gh('/git/trees',{method:'POST',body:{base_tree:baseSha,tree:entradas}}):{sha:baseSha};
       const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref2.object.sha]}});
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
       catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
