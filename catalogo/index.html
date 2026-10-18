@@ -123,6 +123,13 @@ label>input,label>textarea,label>select{margin-top:6px}
 .acm-it input{margin-top:3px;width:18px;height:18px;flex-shrink:0}
 .acm-it b{display:block}.acm-it small{color:var(--muted);display:block}
 .acm-it .de{text-decoration:line-through;color:var(--muted)}
+.nt-it{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.nt-it img{width:84px;height:48px;object-fit:cover;border-radius:8px;background:var(--field);flex-shrink:0}
+.nt-it div{flex:1;min-width:0;font-size:14px}.nt-it b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nt-it small{color:var(--muted);display:block}
+.nt-it .acc{display:flex;gap:4px;flex-shrink:0}.nt-it .acc button{min-height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13px}
+.nt-it.vencida{opacity:.5}
+.nt-foto{display:grid;place-items:center;min-height:120px;border:1px dashed var(--line);border-radius:12px;cursor:pointer;overflow:hidden;color:var(--ink);font-weight:600}
+.nt-foto img{width:100%;max-height:220px;object-fit:cover;display:block}
 .acm-h{margin:14px 0 4px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .lbl{font-size:13px;color:var(--muted);margin:0 0 8px}
 .blk{margin-bottom:16px}
@@ -179,6 +186,7 @@ label>input,label>textarea,label>select{margin-top:6px}
       <p class="sub"><span id="subInfo">Cargando…</span><button type="button" class="warn" id="bkWarn" hidden>Haz un respaldo</button></p>
     </div>
     <div class="top-actions">
+      <button type="button" class="btn ghost" id="btnNoticias">📰 Portada</button>
       <button type="button" class="btn ghost" id="btnAcomodar">🧭 Acomodar todo</button>
       <button type="button" class="btn ghost" id="btnAjustes">Ajustes</button>
       <button type="button" class="btn" id="btnNuevo">Nuevo producto</button>
@@ -365,6 +373,32 @@ label>input,label>textarea,label>select{margin-top:6px}
     <button type="button" class="btn ghost full" id="bkExport">Guardar respaldo</button>
     <label class="btn ghost full" style="margin:0 0 10px">Cargar un respaldo<input type="file" class="sr" id="bkImport" accept=".json,application/json"></label>
     <button type="button" class="btn ghost full" id="ajClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- Portada y noticias de la tienda -->
+<div class="drawer" id="nt" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="ntTitle">
+    <h2 id="ntTitle">Portada y noticias</h2>
+    <p>Lo que pongas aquí sale en la portada de tu tienda y va cambiando solo. Úsalo para lo nuevo que se viene. Se publica con “Publicar tienda”.</p>
+    <div id="ntLista"></div>
+    <div id="ntForm" hidden>
+      <p class="acm-h" id="ntFormTit">Nueva noticia</p>
+      <label class="nt-foto" id="ntFotoLbl"><img id="ntFotoImg" alt="" hidden><span id="ntFotoTxt">📷 Elegir foto (horizontal se ve mejor)</span><input type="file" class="sr" id="ntFoto" accept="image/*"></label>
+      <label>Título<input id="ntTit" placeholder="Llega lo nuevo de Gymshark" autocomplete="off"></label>
+      <label>Texto corto <span class="opt">(opcional)</span><input id="ntTxt" placeholder="Sale el 25 de octubre · Ordena con anticipo" autocomplete="off"></label>
+      <div class="grid2">
+        <label>Texto del botón<input id="ntBtn" placeholder="Ver ahora" autocomplete="off"></label>
+        <label>Se quita sola el <span class="opt">(opcional)</span><input type="date" id="ntFin"></label>
+      </div>
+      <label>El botón lleva a<select id="ntDest"></select></label>
+      <label id="ntLinkLbl" hidden>Link<input id="ntLink" placeholder="https://…" autocomplete="off" inputmode="url"></label>
+      <p class="note" id="ntErr" style="color:var(--danger)" hidden></p>
+      <button type="button" class="btn full" id="ntGuardar">Guardar noticia</button>
+      <button type="button" class="btn ghost full" id="ntCancelar">Cancelar</button>
+    </div>
+    <button type="button" class="btn full" id="ntAgregar">+ Agregar noticia</button>
+    <button type="button" class="btn ghost full" id="ntCerrar">Cerrar</button>
   </div>
 </div>
 
@@ -1088,16 +1122,74 @@ async function gh(path,opt,intento){
   return r.status===204?null:r.json();
 }
 function b64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
-async function jpegTienda(blob){
+async function jpegTienda(blob,max){
   const u=URL.createObjectURL(blob);
   try{
-    const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,1200/Math.max(w,h));
+    const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,(max||1200)/Math.max(w,h));
     const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
     c.getContext('2d').drawImage(im,0,0,c.width,c.height);
     const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.82)); return new Uint8Array(await b.arrayBuffer());
   } finally { URL.revokeObjectURL(u); }
 }
 /* Arma lo que ve el público. Solo campos públicos: nada de costos, márgenes, notas ni clientes. */
+/* ---------- Portada y noticias ----------
+   Se guardan en este aparato (como tus ajustes) y salen en la portada de la tienda al publicar. */
+const NT_KEY=CFG.db+'_noticias';
+let ntEdit=null, ntFotoData='';
+function ntLeer(){ try{ const a=JSON.parse(localStorage.getItem(NT_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function ntGuardarTodas(a){ try{ localStorage.setItem(NT_KEY,JSON.stringify(a)); return true; }catch(e){ toast('Ya no cabe otra foto. Quita una noticia vieja.'); return false; } }
+const ntHoy=()=>{ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+function ntDestinos(){
+  const ms=[...new Set(ALIAS.map(a=>a[1]).concat(productos.map(p=>marcaOficial(p))).filter(Boolean))].sort();
+  return [['','Ningún lado (solo la foto)'],['early','El Early Access (con contraseña)'],['ofertas','Ofertas y últimas tallas'],['drops','Drops y preventas']].concat(ms.map(m=>['marca:'+m,'Solo '+m])).concat([['url','Un link']]);
+}
+function ntDestTxt(n){ const d=ntDestinos().find(x=>x[0]===n.destino); return n.destino==='url'?'Link':d?d[1].replace(/^Solo /,''):'—'; }
+function ntPintar(){
+  const a=ntLeer(), hoy=ntHoy();
+  $('#ntLista').innerHTML=a.length?a.map((n,i)=>{ const venc=n.fin&&n.fin<hoy;
+    return '<div class="nt-it'+(venc?' vencida':'')+'"><img src="'+esc(n.foto||'')+'" alt=""><div><b>'+esc(n.titulo||'(sin título)')+'</b><small>'+esc(ntDestTxt(n))+(n.fin?' · '+(venc?'ya se quitó ('+esc(n.fin)+')':'hasta el '+esc(n.fin)):'')+'</small></div>'+
+      '<div class="acc"><button type="button" data-nt="sube" data-i="'+i+'" aria-label="Subir"'+(i?'':' disabled')+'>↑</button><button type="button" data-nt="baja" data-i="'+i+'" aria-label="Bajar"'+(i<a.length-1?'':' disabled')+'>↓</button><button type="button" data-nt="edita" data-i="'+i+'">Editar</button><button type="button" data-nt="quita" data-i="'+i+'">Quitar</button></div></div>'; }).join('')
+    :'<p class="note">Todavía no tienes noticias. La portada muestra tu producto ⭐ Destacado o tu Early Access.</p>';
+}
+function ntForm(n){
+  ntEdit=n?n.id:null; ntFotoData=n?n.foto||'':'';
+  $('#ntFormTit').textContent=n?'Editar noticia':'Nueva noticia';
+  $('#ntTit').value=n?n.titulo||'':''; $('#ntTxt').value=n?n.texto||'':''; $('#ntBtn').value=n?n.boton||'':''; $('#ntFin').value=n?n.fin||'':'';
+  $('#ntDest').innerHTML=ntDestinos().map(d=>'<option value="'+esc(d[0])+'">'+esc(d[1])+'</option>').join(''); $('#ntDest').value=n?n.destino||'':'';
+  $('#ntLink').value=n?n.link||'':''; $('#ntLinkLbl').hidden=$('#ntDest').value!=='url';
+  $('#ntFotoImg').src=ntFotoData; $('#ntFotoImg').hidden=!ntFotoData; $('#ntFotoTxt').hidden=!!ntFotoData;
+  $('#ntErr').hidden=true; $('#ntForm').hidden=false; $('#ntAgregar').hidden=true; $('#ntTit').focus();
+}
+async function ntComprimir(blob){
+  const u=URL.createObjectURL(blob);
+  try{ const im=await loadImg(u), s=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight));
+    const c=document.createElement('canvas'); c.width=Math.round(im.naturalWidth*s); c.height=Math.round(im.naturalHeight*s);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height); return c.toDataURL('image/jpeg',.8); }
+  finally{ URL.revokeObjectURL(u); }
+}
+$('#btnNoticias').addEventListener('click',()=>{ $('#ntForm').hidden=true; $('#ntAgregar').hidden=false; ntPintar(); $('#nt').hidden=false; });
+$('#ntCerrar').addEventListener('click',()=>{ $('#nt').hidden=true; });
+$('#nt').addEventListener('click',e=>{ if(e.target.id==='nt'){ $('#nt').hidden=true; return; }
+  const b=e.target.closest('[data-nt]'); if(!b) return; const a=ntLeer(), i=+b.dataset.i;
+  if(b.dataset.nt==='edita'){ ntForm(a[i]); return; }
+  if(b.dataset.nt==='quita'){ if(!confirm('¿Quitar “'+(a[i].titulo||'esta noticia')+'” de la portada?')) return; a.splice(i,1); }
+  if(b.dataset.nt==='sube'&&i>0) a.splice(i-1,0,a.splice(i,1)[0]);
+  if(b.dataset.nt==='baja'&&i<a.length-1) a.splice(i+1,0,a.splice(i,1)[0]);
+  if(ntGuardarTodas(a)) ntPintar(); });
+$('#ntAgregar').addEventListener('click',()=>ntForm(null));
+$('#ntCancelar').addEventListener('click',()=>{ $('#ntForm').hidden=true; $('#ntAgregar').hidden=false; });
+$('#ntDest').addEventListener('change',()=>{ $('#ntLinkLbl').hidden=$('#ntDest').value!=='url'; });
+$('#ntFoto').addEventListener('change',async e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ ntFotoData=await ntComprimir(f); $('#ntFotoImg').src=ntFotoData; $('#ntFotoImg').hidden=false; $('#ntFotoTxt').hidden=true; }catch(err){ toast('No se pudo leer esa foto'); } });
+$('#ntGuardar').addEventListener('click',()=>{
+  const err=!ntFotoData?'Elige una foto.':!$('#ntTit').value.trim()?'Escribe un título.':$('#ntDest').value==='url'&&!/^https?:\/\//.test($('#ntLink').value.trim())?'Pega el link completo (empieza con https://).':'';
+  if(err){ $('#ntErr').textContent=err; $('#ntErr').hidden=false; return; }
+  const a=ntLeer(), n={id:ntEdit||'n'+uid(),titulo:$('#ntTit').value.trim(),texto:$('#ntTxt').value.trim(),boton:$('#ntBtn').value.trim(),destino:$('#ntDest').value,link:$('#ntLink').value.trim(),fin:$('#ntFin').value,foto:ntFotoData,v:Date.now()};
+  const i=a.findIndex(x=>x.id===n.id); if(i>=0) a[i]=n; else a.unshift(n);
+  if(!ntGuardarTodas(a)) return;
+  $('#ntForm').hidden=true; $('#ntAgregar').hidden=false; ntPintar(); toast('Noticia guardada. Publica tu tienda para que se vea.');
+});
+
 /* ---------- Acomodar todo ---------- */
 // la marca sale del link: cada tienda es de una marca
 const DOMINIOS=[[/youngla\.com/i,'YoungLA'],[/gymshark\.com/i,'Gymshark'],[/darcsport\.com/i,'Darc Sport'],[/dfyne\.com/i,'DFYNE'],
@@ -1216,6 +1308,12 @@ async function armarTienda(){
     datos.privadoPortada=dest?dest.colores[0].fotos[0]:'';
     datos.privadoMarca=Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a])[0]||'';
     datos.privadoFecha=ea.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''; }
+  // portada: noticias vigentes, en el orden que las pusiste
+  const hoyN=ntHoy(); datos.portada=[];
+  for(const n of ntLeer()){ if(!n.foto||(n.fin&&n.fin<hoyN)) continue;
+    const path='fotos/n-'+n.id+'-'+Number(n.v||0).toString(36)+'.jpg';
+    usadas.push({path,blob:await dataToBlob(n.foto),max:1600});
+    datos.portada.push({id:n.id,titulo:n.titulo||'',texto:n.texto||'',boton:n.boton||'',destino:n.destino||'',link:n.destino==='url'?n.link||'':'',foto:path}); }
   return {datos,fotos:usadas};
 }
 async function cifrar(texto,clave){
@@ -1244,7 +1342,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
       let sha=ya&&ya.sha;
-      if(!sha){ const bytes=await jpegTienda(f.blob); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
+      if(!sha){ const bytes=await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
       entradas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
     entradas.push({path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)});
@@ -1272,7 +1370,7 @@ $('#bkExport').addEventListener('click',async()=>{
   const b=$('#bkExport'); b.disabled=true; b.textContent='Preparando…';
   try{
     const fotos=await getAll('fotos');
-    const out={app:'catalogo',version:1,exportado:new Date().toISOString(),ajustes:AJ,productos:await getAll('productos'),
+    const out={app:'catalogo',version:1,exportado:new Date().toISOString(),ajustes:AJ,noticias:ntLeer(),productos:await getAll('productos'),
       fotos:await Promise.all(fotos.map(async f=>({id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,data:await blobToData(f.blob)})))};
     const d=new Date(), name='Respaldo-Catalogo-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
     if(await compartirArchivo(new File([JSON.stringify(out)],name,{type:'application/json'}))){
@@ -1290,6 +1388,7 @@ $('#bkImport').addEventListener('change',async e=>{
     for(const p of data.productos) if(p&&p.id) await put('productos',p);
     for(const f of (data.fotos||[])) if(f&&f.id&&f.data) await put('fotos',{id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,blob:await dataToBlob(f.data)});
   }catch(err){ toast('No se pudo cargar todo el respaldo'); }
+  if(Array.isArray(data.noticias)&&data.noticias.length){ const a=ntLeer(); data.noticias.forEach(n=>{ if(n&&n.id&&!a.some(x=>x.id===n.id)) a.push(n); }); ntGuardarTodas(a); }
   productos=await getAll('productos'); await refreshList();
   $('#aj').hidden=true; toast(data.productos.length===1?'Se cargó 1 producto':'Se cargaron '+data.productos.length+' productos');
 });
@@ -1298,6 +1397,7 @@ document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   if(!$('#viewer').hidden){ $('#viewer').hidden=true; vFoto=null; }
   else if(!$('#av').hidden) $('#av').hidden=true;
+  else if(!$('#nt').hidden) $('#nt').hidden=true;
   else if(!$('#aj').hidden) $('#aj').hidden=true;
   else if(sheet.classList.contains('open')) cerrar();
 });
