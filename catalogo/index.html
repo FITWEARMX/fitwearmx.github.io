@@ -1144,10 +1144,14 @@ function abrirAcomodar(){
   acmCambios=productos.map(p=>{
     const m=marcaOficial(p), c=categoriaOficial(p), mAnt=(p.marca||'').trim(), cAnt=p.categoria||'';
     const cambia={}; if(m&&m!==mAnt) cambia.marca=m; if(c!==cAnt) cambia.categoria=c;
+    // accesorios: talla única (como en YoungLA y Gymshark), no XS a 2XL
+    const tAnt=[...new Set((p.colores||[]).flatMap(x=>Object.keys(x.tallas||{})))];
+    if(c==='Accesorios'&&tAnt.length&&!(tAnt.length===1&&tAnt[0]==='Única')) cambia.unica=tAnt;
     return Object.keys(cambia).length?{p,cambia,mAnt,cAnt}:null; }).filter(Boolean);
   const sinMarca=productos.filter(p=>!DOMINIOS.some(d=>d[0].test(marcaOficial(p)))&&!ALIAS.some(a=>a[1]===marcaOficial(p)));
   const fila=(x,i)=>'<label class="acm-it"><input type="checkbox" data-acm="'+i+'" checked><div><b>'+esc(x.p.nombre||'(sin nombre)')+'</b>'+
     (x.cambia.marca?'<small>Marca: <span class="de">'+esc(x.mAnt||'vacía')+'</span> → <b style="display:inline">'+esc(x.cambia.marca)+'</b>'+(x.mAnt&&!esMarca(x.mAnt)?' · “'+esc(x.mAnt)+'” se guarda como colección':'')+'</small>':'')+
+    (x.cambia.unica?'<small>Tallas: <span class="de">'+esc(x.cambia.unica.join(', '))+'</span> → <b style="display:inline">Única</b></small>':'')+
     (x.cambia.categoria!==undefined?'<small>Categoría: <span class="de">'+esc(x.cAnt||'sin categoría')+'</span> → <b style="display:inline">'+esc(x.cambia.categoria||'sin categoría')+'</b></small>':'')+'</div></label>';
   $('#acmLista').innerHTML=(acmCambios.length?'<p class="acm-h">'+acmCambios.length+(acmCambios.length===1?' cambio':' cambios')+' (quita la palomita a lo que no quieras)</p>'+acmCambios.map(fila).join(''):'<p>✅ Todo está acomodado. No hay nada que cambiar.</p>')+
     (sinMarca.length?'<p class="acm-h">No supe la marca de '+sinMarca.length+'</p><p class="note" style="margin:0 0 6px">No tienen link de una tienda que conozca. Ábrelos y pon la marca a mano.</p>'+sinMarca.map(p=>'<div class="acm-it"><div style="flex:1"><b>'+esc(p.nombre||'(sin nombre)')+'</b><small>Marca: '+esc(p.marca||'vacía')+'</small>'+
@@ -1170,6 +1174,7 @@ $('#acmAplicar').addEventListener('click',async()=>{
       const p=x.p;
       if(x.cambia.marca){ if(x.mAnt&&!esMarca(x.mAnt)&&!p.coleccion) p.coleccion=x.mAnt; p.marca=x.cambia.marca; }
       if(x.cambia.categoria!==undefined) p.categoria=x.cambia.categoria;
+      if(x.cambia.unica) (p.colores||[]).forEach(c=>{ const n=Object.values(c.tallas||{}).reduce((a,v)=>a+(+v||0),0); c.tallas={'Única':n}; c.agotadas=[]; });
       p.updatedAt=Date.now(); await put('productos',JSON.parse(JSON.stringify(p)));
     }
     productos=await getAll('productos'); await refreshList();
