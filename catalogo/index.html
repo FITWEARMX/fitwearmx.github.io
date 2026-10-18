@@ -128,6 +128,7 @@ label>input,label>textarea,label>select{margin-top:6px}
 .nt-it div{flex:1;min-width:0;font-size:14px}.nt-it b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nt-it small{color:var(--muted);display:block}
 .nt-it .acc{display:flex;gap:4px;flex-shrink:0}.nt-it .acc button{min-height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13px}
 .nt-it.vencida{opacity:.5}
+.nt-fijo{width:84px;height:48px;border-radius:8px;background:var(--field);display:grid;place-items:center;font-size:22px;flex-shrink:0}
 .nt-foto{display:grid;place-items:center;min-height:120px;border:1px dashed var(--line);border-radius:12px;cursor:pointer;overflow:hidden;color:var(--ink);font-weight:600}
 .nt-foto img{width:100%;max-height:220px;object-fit:cover;display:block}
 .acm-h{margin:14px 0 4px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -1146,9 +1147,24 @@ function ntDestinos(){
     .concat(cols.map(c=>['col:'+c[0]+'|'+c[1],'Solo la colección '+c[1]+' ('+c[0]+')'])).concat([['url','Un link']]);
 }
 function ntDestTxt(n){ if((n.destino||'').startsWith('col:')) return n.destino.slice(4).split('|').reverse().join(' · '); const d=ntDestinos().find(x=>x[0]===n.destino); return n.destino==='url'?'Link':d?d[1].replace(/^Solo /,''):'—'; }
+// La portada también trae tu Early Access y tu producto ⭐ Destacado: los puedes acomodar en el orden que quieras u ocultarlos
+function ntLista(){
+  const a=ntLeer(); let cambio=false;
+  if(!a.some(n=>n.id==='__ea')){ a.unshift({id:'__ea',fijo:'ea'}); cambio=true; }
+  if(!a.some(n=>n.id==='__dest')){ a.push({id:'__dest',fijo:'dest'}); cambio=true; }
+  if(cambio) ntGuardarTodas(a);
+  return a;
+}
+function ntFijo(n,i,a){
+  const ea=n.fijo==='ea', eas=productos.filter(p=>B(p)==='early'&&p.enTienda!==false).length;
+  return '<div class="nt-it'+(n.oculta?' vencida':'')+'"><span class="nt-fijo">'+(ea?'🔒':'⭐')+'</span><div><b>'+(ea?'Early Access':'Producto destacado')+'</b><small>'+
+    (n.oculta?'Oculto: no sale en la portada':ea?(eas?eas+' productos con contraseña':'Sale cuando tengas productos en Early Access'):'El producto que marcaste con ⭐ Destacado')+'</small></div>'+
+    '<div class="acc"><button type="button" data-nt="sube" data-i="'+i+'" aria-label="Subir"'+(i?'':' disabled')+'>↑</button><button type="button" data-nt="baja" data-i="'+i+'" aria-label="Bajar"'+(i<a.length-1?'':' disabled')+'>↓</button>'+
+    '<button type="button" data-nt="oculta" data-i="'+i+'">'+(n.oculta?'Mostrar':'Ocultar')+'</button></div></div>';
+}
 function ntPintar(){
-  const a=ntLeer(), hoy=ntHoy();
-  $('#ntLista').innerHTML=a.length?a.map((n,i)=>{ const venc=n.fin&&n.fin<hoy;
+  const a=ntLista(), hoy=ntHoy();
+  $('#ntLista').innerHTML=a.length?a.map((n,i)=>{ if(n.fijo) return ntFijo(n,i,a); const venc=n.fin&&n.fin<hoy;
     return '<div class="nt-it'+(venc?' vencida':'')+'"><img src="'+esc(n.foto||'')+'" alt=""><div><b>'+esc(n.titulo||'(sin título)')+'</b><small>'+esc(ntDestTxt(n))+(n.fin?' · '+(venc?'ya se quitó ('+esc(n.fin)+')':'hasta el '+esc(n.fin)):'')+'</small></div>'+
       '<div class="acc"><button type="button" data-nt="sube" data-i="'+i+'" aria-label="Subir"'+(i?'':' disabled')+'>↑</button><button type="button" data-nt="baja" data-i="'+i+'" aria-label="Bajar"'+(i<a.length-1?'':' disabled')+'>↓</button><button type="button" data-nt="edita" data-i="'+i+'">Editar</button><button type="button" data-nt="quita" data-i="'+i+'">Quitar</button></div></div>'; }).join('')
     :'<p class="note">Todavía no tienes noticias. La portada muestra tu producto ⭐ Destacado o tu Early Access.</p>';
@@ -1173,7 +1189,8 @@ async function ntComprimir(blob){
 $('#btnNoticias').addEventListener('click',()=>{ $('#ntForm').hidden=true; $('#ntAgregar').hidden=false; ntPintar(); $('#nt').hidden=false; });
 $('#ntCerrar').addEventListener('click',()=>{ $('#nt').hidden=true; });
 $('#nt').addEventListener('click',e=>{ if(e.target.id==='nt'){ $('#nt').hidden=true; return; }
-  const b=e.target.closest('[data-nt]'); if(!b) return; const a=ntLeer(), i=+b.dataset.i;
+  const b=e.target.closest('[data-nt]'); if(!b) return; const a=ntLista(), i=+b.dataset.i;
+  if(b.dataset.nt==='oculta'){ a[i].oculta=!a[i].oculta; if(ntGuardarTodas(a)) ntPintar(); return; }
   if(b.dataset.nt==='edita'){ ntForm(a[i]); return; }
   if(b.dataset.nt==='quita'){ if(!confirm('¿Quitar “'+(a[i].titulo||'esta noticia')+'” de la portada?')) return; a.splice(i,1); }
   if(b.dataset.nt==='sube'&&i>0) a.splice(i-1,0,a.splice(i,1)[0]);
@@ -1185,10 +1202,11 @@ $('#ntDest').addEventListener('change',()=>{ $('#ntLinkLbl').hidden=$('#ntDest')
 $('#ntFoto').addEventListener('change',async e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
   try{ ntFotoData=await ntComprimir(f); $('#ntFotoImg').src=ntFotoData; $('#ntFotoImg').hidden=false; $('#ntFotoTxt').hidden=true; }catch(err){ toast('No se pudo leer esa foto'); } });
 $('#ntGuardar').addEventListener('click',()=>{
+  ntLista();
   const err=!ntFotoData?'Elige una foto.':!$('#ntTit').value.trim()?'Escribe un título.':$('#ntDest').value==='url'&&!/^https?:\/\//.test($('#ntLink').value.trim())?'Pega el link completo (empieza con https://).':'';
   if(err){ $('#ntErr').textContent=err; $('#ntErr').hidden=false; return; }
   const a=ntLeer(), n={id:ntEdit||'n'+uid(),titulo:$('#ntTit').value.trim(),texto:$('#ntTxt').value.trim(),boton:$('#ntBtn').value.trim(),destino:$('#ntDest').value,link:$('#ntLink').value.trim(),fin:$('#ntFin').value,foto:ntFotoData,v:Date.now()};
-  const i=a.findIndex(x=>x.id===n.id); if(i>=0) a[i]=n; else a.unshift(n);
+  const i=a.findIndex(x=>x.id===n.id); if(i>=0) a[i]=n; else a.splice(a.findIndex(x=>x.id==='__ea')+1,0,n);
   if(!ntGuardarTodas(a)) return;
   $('#ntForm').hidden=true; $('#ntAgregar').hidden=false; ntPintar(); toast('Noticia guardada. Publica tu tienda para que se vea.');
 });
@@ -1317,6 +1335,8 @@ async function armarTienda(){
     const path='fotos/n-'+n.id+'-'+Number(n.v||0).toString(36)+'.jpg';
     usadas.push({path,blob:await dataToBlob(n.foto),max:1600});
     datos.portada.push({id:n.id,titulo:n.titulo||'',texto:n.texto||'',boton:n.boton||'',destino:n.destino||'',link:n.destino==='url'?n.link||'':'',foto:path}); }
+  const vig=new Set(datos.portada.map(n=>n.id));
+  datos.portadaOrden=ntLista().filter(n=>!n.oculta&&(n.fijo||vig.has(n.id))).map(n=>n.fijo==='ea'?'ea':n.fijo==='dest'?'destacado':n.id);
   return {datos,fotos:usadas};
 }
 async function cifrar(texto,clave){
