@@ -143,6 +143,17 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
 
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;z-index:80;background:var(--inv-bg);color:var(--inv-ink);padding:10px 16px;border-radius:999px;font-size:14px;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+/* pedido que llega de la tienda */
+.ped{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.ped-c{width:min(100%,460px);max-height:calc(100% - 32px);overflow:auto;background:var(--surface);color:var(--ink);border-radius:20px;padding:20px}
+.ped-c h2{margin:0 0 2px;font-size:21px}.ped-c>p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.ped-cli{background:var(--field);border-radius:12px;padding:12px 14px;margin-bottom:12px}.ped-cli b{display:block;font-size:16px}.ped-cli small{color:var(--muted)}
+.ped-it{display:flex;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.ped-it img{width:52px;height:64px;object-fit:cover;border-radius:8px;background:var(--field);flex-shrink:0}
+.ped-it div{flex:1;min-width:0;font-size:14px}.ped-it small{display:block;color:var(--muted)}.ped-it span{font-weight:700;white-space:nowrap}
+.ped-tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}.ped-tot.big{font-weight:800;font-size:16px;border-top:1px solid var(--line);margin-top:6px;padding-top:8px}
+.ped-ord{background:var(--field);border-radius:12px;padding:10px 12px;margin:10px 0 14px;font-size:13.5px;color:var(--muted)}.ped-ord b{color:var(--green)}
+.ped-c .btn{width:100%;margin-top:8px}
 
 @media (min-width:960px){
   body{padding-bottom:0}
@@ -270,6 +281,7 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="ped" id="ped" hidden><div class="ped-c" role="dialog" aria-modal="true" aria-labelledby="pedTit" id="pedC"></div></div>
 
 <script>
 (function(){
@@ -390,6 +402,7 @@ async function initBackend(){
   } else { backend='local'; loadLocal(); boot(); }
 }
 function boot(){
+  setTimeout(revisarPedido,0);
   if(userEdited){ saveNow(false); setSave('pending','Sin guardar'); return; }
   if(facturas.length) openInvoice(facturas[0].id,true);
   else { cur=newInvoice(); renderAll(); setSave('', backend==='db'?'Listo':'Se guarda en este dispositivo'); }
@@ -808,6 +821,68 @@ $('#btnNueva').addEventListener('click',()=>{
   setSave('','Nueva factura sin guardar');
   const c=$('[data-f="cliente"]'); if(c) c.focus({preventScroll:true});
 });
+
+/* ---------- pedidos que llegan de la tienda ----------
+   El cliente manda un link #pedido=… con sus prendas; aquí se arma la factura y se guarda el cliente en Clientes. */
+const TIENDA_URL='../tienda/';
+let pedido=null;
+function leerPedido(){
+  const m=/[#&]pedido=([A-Za-z0-9_-]+)/.exec(location.hash||''); if(!m) return null;
+  try{ const b=m[1].replace(/-/g,'+').replace(/_/g,'/'); const j=JSON.parse(decodeURIComponent(escape(atob(b+'==='.slice((b.length+3)%4)))));
+    return j&&j.v===1&&Array.isArray(j.i)&&j.i.length?j:null; }catch(e){ return null; }
+}
+function quitarHash(){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+const fotoTienda=p=>p?new URL(TIENDA_URL+p,location.href).href:'';
+function revisarPedido(){
+  pedido=leerPedido(); if(!pedido){ if(/pedido=/.test(location.hash)){ quitarHash(); toast('Ese link de pedido no se pudo leer'); } return; }
+  const ya=facturas.find(f=>f.pedido===pedido.c&&f.origen==='tienda');
+  if(ya){ quitarHash(); openInvoice(ya.id,true); toast('Ese pedido ya estaba guardado'); pedido=null; return; }
+  const sub=pedido.i.reduce((a,x)=>a+num(x[4]),0), env=num(pedido.env);
+  $('#pedC').innerHTML='<h2 id="pedTit">📦 Pedido de tu tienda</h2><p>'+esc(pedido.c)+' · '+esc(fechaLarga(pedido.f))+'</p>'+
+    '<div class="ped-cli"><b>'+esc(pedido.n||'Sin nombre')+'</b><small>'+esc(pedido.t||'')+' · '+(pedido.ent==='mty'?'Monterrey con chofer':'Envío a otra ciudad')+' · '+esc({transferencia:'Transferencia',oxxo:'Depósito en OXXO',efectivo:'Efectivo al recibir'}[pedido.pag]||'')+'</small></div>'+
+    pedido.i.map(x=>'<div class="ped-it">'+(x[5]?'<img src="'+esc(fotoTienda(x[5]))+'" alt="">':'<img alt="">')+'<div><b>'+esc(x[0])+'</b><small>'+esc([x[1],x[2],x[3]?'Talla '+x[3]:'',x[6]].filter(Boolean).join(' · '))+'</small></div><span>'+money(x[4])+'</span></div>').join('')+
+    '<div style="margin-top:8px"><div class="ped-tot"><span>Productos</span><span>'+money(sub)+'</span></div><div class="ped-tot"><span>Envío</span><span>'+(pedido.ent==='mty'?money(env):'Por cotizar')+'</span></div>'+
+    '<div class="ped-tot big"><span>Total</span><span>'+money(sub+env)+'</span></div></div>'+
+    (num(pedido.ant)?'<div class="ped-ord">Ordena con <b>'+money(pedido.ant)+'</b> · resto '+money(pedido.res)+' antes del '+esc(pedido.lim)+'. Cuando te pague, agrégalo en Anticipos.</div>':'')+
+    '<button type="button" class="btn" id="pedSi">Guardar factura y cliente</button><button type="button" class="btn ghost" id="pedNo">Ahora no</button>';
+  $('#ped').hidden=false;
+}
+// busca al cliente por su WhatsApp en la app de Clientes; si no existe, lo crea con el siguiente número
+async function clienteDePedido(nombre,tel){
+  const dig=v=>String(v||'').replace(/\D/g,'').slice(-10), t=dig(tel);
+  const d=await new Promise((res,rej)=>{ const r=indexedDB.open('clientes_db',1);
+    r.onupgradeneeded=()=>{ const x=r.result; if(!x.objectStoreNames.contains('clientes')) x.createObjectStore('clientes',{keyPath:'id'});
+      if(!x.objectStoreNames.contains('fotos')){ const fs=x.createObjectStore('fotos',{keyPath:'id'}); fs.createIndex('clienteId','clienteId'); } };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+  try{
+    const todos=await new Promise((res,rej)=>{ const q=d.transaction('clientes').objectStore('clientes').getAll(); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+    const ya=t.length===10&&todos.find(c=>dig(c.telefono)===t);
+    if(ya) return {num:numCli(ya.num),nombre:(ya.nombre||'').trim()||nombre,nuevo:false};
+    let max=0; todos.forEach(c=>{ const n=numCli(c.num); if(/^\d+$/.test(n)) max=Math.max(max,+n); });
+    const c={id:'c'+uid(),num:String(max+1).padStart(4,'0'),nombre:(nombre||'').trim(),telefono:(tel||'').trim(),correo:'',instagram:'',cumple:'',direccion:'',notas:'Llegó por la tienda en línea',
+      linea:'',tallaArriba:'',tallaAbajo:'',tallaTenis:'',marcas:[],etiquetas:[],portada:null,createdAt:Date.now(),updatedAt:Date.now()};
+    await new Promise((res,rej)=>{ const tx=d.transaction('clientes','readwrite'); tx.objectStore('clientes').put(c); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+    return {num:c.num,nombre:c.nombre,nuevo:true};
+  } finally { d.close(); }
+}
+async function guardarPedido(){
+  const p=pedido; if(!p) return;
+  const b=$('#pedSi'); b.disabled=true; b.textContent='Guardando…';
+  let cli=null; try{ cli=await clienteDePedido(p.n,p.t); }catch(e){}
+  saveNow(true);
+  const inv=newInvoice();
+  Object.assign(inv,{pedido:p.c,origen:'tienda',fecha:p.f||todayISO(),cliente:cli?cli.nombre:(p.n||''),clienteNum:cli?cli.num:'',telefono:p.t||'',envio:num(p.env),anticipos:[]});
+  if(!inv.marca) inv.marca='FITWEARMX';
+  inv.items=p.i.map(x=>({k:uid(),nombre:x[0]||'',desc:[x[1],x[2],x[6]].filter(Boolean).join(' · '),talla:x[3]||'',precio:num(x[4]),foto:null}));
+  // las fotos se copian de la tienda a la factura (más ligeras, como cuando subes una)
+  for(let k=0;k<p.i.length;k++){ const src=p.i[k][5]; if(!src) continue; b.textContent='Copiando fotos… '+(k+1)+' de '+p.i.length;
+    try{ const bl=await fetch(fotoTienda(src)).then(r=>{ if(!r.ok) throw 0; return r.blob(); }); const sm=await compress(bl,520,.72); inv.items[k].foto={data:await toDataURL(sm.blob),zoom:1,x:.5,y:.5}; }catch(e){} }
+  cur=inv; dirty=true; lastBlob=null; renderAll(); window.scrollTo(0,0); saveNow(true);
+  $('#ped').hidden=true; quitarHash(); pedido=null;
+  toast(cli?(cli.nuevo?'✓ Factura guardada y cliente #'+cli.num+' agregado a Clientes':'✓ Factura guardada para tu cliente #'+cli.num):'✓ Factura guardada (no pude abrir Clientes)');
+}
+$('#ped').addEventListener('click',e=>{ if(e.target.id==='pedSi') guardarPedido(); else if(e.target.id==='pedNo'||e.target.id==='ped'){ $('#ped').hidden=true; quitarHash(); pedido=null; } });
+window.addEventListener('hashchange',()=>{ if(backend!=='pending') revisarPedido(); });
 
 /* ---------- prendas desde el Catálogo ---------- */
 const CATDB='catalogo_db';
