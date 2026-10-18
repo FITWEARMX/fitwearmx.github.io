@@ -119,6 +119,11 @@ label>input,label>textarea,label>select{margin-top:6px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 @media (max-width:360px){.grid2{grid-template-columns:1fr}}
 .note{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+.acm-it{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.acm-it input{margin-top:3px;width:18px;height:18px;flex-shrink:0}
+.acm-it b{display:block}.acm-it small{color:var(--muted);display:block}
+.acm-it .de{text-decoration:line-through;color:var(--muted)}
+.acm-h{margin:14px 0 4px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .lbl{font-size:13px;color:var(--muted);margin:0 0 8px}
 .blk{margin-bottom:16px}
 .price-box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin:4px 0 12px}
@@ -174,6 +179,7 @@ label>input,label>textarea,label>select{margin-top:6px}
       <p class="sub"><span id="subInfo">Cargando…</span><button type="button" class="warn" id="bkWarn" hidden>Haz un respaldo</button></p>
     </div>
     <div class="top-actions">
+      <button type="button" class="btn ghost" id="btnAcomodar">🧭 Acomodar todo</button>
       <button type="button" class="btn ghost" id="btnAjustes">Ajustes</button>
       <button type="button" class="btn" id="btnNuevo">Nuevo producto</button>
     </div>
@@ -362,6 +368,17 @@ label>input,label>textarea,label>select{margin-top:6px}
   </div>
 </div>
 
+<!-- Acomodar todo: marca según el link y categoría según la prenda -->
+<div class="drawer" id="acm" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="acmTitle">
+    <h2 id="acmTitle">Acomodar todo</h2>
+    <p>Pongo a cada prenda <b>su marca según su link</b> (youngla.com → YoungLA, civilclothing.com → Civil Regime…) y <b>su categoría según lo que es</b> (playera, short, hoodie, chamarra, compresión…). Primero te enseño los cambios; nada se cambia hasta que le picas Aplicar.</p>
+    <div id="acmLista"></div>
+    <button type="button" class="btn full" id="acmAplicar">Aplicar cambios</button>
+    <button type="button" class="btn ghost full" id="acmCerrar">Cerrar</button>
+  </div>
+</div>
+
 <!-- Avisar a todos -->
 <div class="drawer" id="av" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="avTitle">
@@ -390,7 +407,7 @@ const numCli=v=>{v=String(v==null?'':v).trim().replace(/^#/,'');return /^\d+$/.t
 const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
 const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const TALLAS=['XS','S','M','L','XL','2XL'];
-const CATS=['Playeras','Compresión','Tops','Sports bras','Hoodies','Pants','Shorts','Bikers','Leggings','Conjuntos','Vestidos','Tenis','Accesorios'];
+const CATS=['Playeras','Compresión','Tops','Sports bras','Hoodies','Chamarras','Pants','Shorts','Bikers','Leggings','Conjuntos','Vestidos','Tenis','Accesorios'];
 const ABAJO=['Pants','Shorts','Bikers','Leggings'];
 const LINEAS=[['hombre','Hombre'],['mujer','Mujer'],['unisex','Unisex']];
 const LINEA_TXT=Object.fromEntries(LINEAS);
@@ -1081,6 +1098,81 @@ async function jpegTienda(blob){
   } finally { URL.revokeObjectURL(u); }
 }
 /* Arma lo que ve el público. Solo campos públicos: nada de costos, márgenes, notas ni clientes. */
+/* ---------- Acomodar todo ---------- */
+// la marca sale del link: cada tienda es de una marca
+const DOMINIOS=[[/youngla\.com/i,'YoungLA'],[/gymshark\.com/i,'Gymshark'],[/darcsport\.com/i,'Darc Sport'],[/dfyne\.com/i,'DFYNE'],
+  [/controlledinsanity\.com/i,'Controlled Insanity'],[/civilclothing\.com|civilregime\.com/i,'Civil Regime'],[/breathedivinity\.com/i,'Breathe Divinity'],[/aybl\.com/i,'AYBL']];
+const ALIAS=[[/young\s*la/i,'YoungLA'],[/gym\s*shark/i,'Gymshark'],[/darc\s*sport/i,'Darc Sport'],[/^dfyne/i,'DFYNE'],[/controlled\s*insanity/i,'Controlled Insanity'],
+  [/civil\s*(regime|clothing)/i,'Civil Regime'],[/breathe\s*divinity/i,'Breathe Divinity'],[/^aybl/i,'AYBL']];
+function marcaOficial(p){
+  const links=[p.link].concat((p.colores||[]).map(c=>c.link)).filter(Boolean).join(' ');
+  const d=DOMINIOS.find(x=>x[0].test(links)); if(d) return d[1];
+  const a=ALIAS.find(x=>x[0].test(String(p.marca||'').trim())); return a?a[1]:String(p.marca||'').trim();
+}
+// la categoría sale del nombre de la prenda (el orden importa: "biker jacket" es chamarra, no biker)
+const REGLAS_CAT=[
+  ['Tenis',/sneaker|\bshoes?\b|\btrainers?\b|\btenis\b|footwear|\bslides?\b/],
+  ['Sports bras',/sports? bra|\bbras?\b|bralette/],
+  ['Compresión',/compression|compresi|base ?layer/],
+  ['Chamarras',/jacket|chamarra|windbreaker|bomber|puffer|\bcoat\b|parka|anorak|varsity/],
+  ['Leggings',/legging/],
+  ['Bikers',/biker short|cycling short|\bbikers?\b/],
+  ['Vestidos',/\bdress|vestido/],
+  ['Hoodies',/hoodie|hoody|sweatshirt|zip[- ]?up|crewneck|pullover|quarter[- ]zip|1\/4 zip|half[- ]zip|sudadera/],
+  ['Shorts',/\bshorts?\b/],
+  ['Pants',/\bpants?\b|jogger|sweatpant|trouser|\bjeans?\b|pantal|\bcargos?\b/],
+  ['Accesorios',/\bhats?\b|\bcaps?\b|\bbags?\b|\bsocks?\b|beanie|pendant|necklace|\bchain|\brings?\b|sunglass|\bbelt\b|bottle|shaker|towel|wrist|strap|duffel|backpack|gorra|calceta|\bjug\b|keychain|headband/],
+  ['Playeras',/\btees?\b|t-shirt|shirt|\btanks?\b|stringer|sleeveless|\btops?\b|polo|muscle|twofer|l\/s|long ?sleeve|jersey|henley|playera/]
+];
+function categoriaOficial(p){
+  const t=' '+String(p.nombre||'').toLowerCase().replace(/short[- ]sleeve/g,'tee')+' ';
+  const r=REGLAS_CAT.find(x=>x[1].test(t)); let c=r?r[0]:'';
+  if(c==='Playeras'&&p.linea==='mujer'&&/\b(crop|tank|cami)/.test(t)) c='Tops';
+  const actual=p.categoria||'';
+  if(!c) return actual;                                     // no supe: se queda como está
+  if(catsExtra().some(x=>x.nombre===actual)) return actual; // tus categorías propias no se tocan
+  if(actual==='Tops'&&c==='Playeras') return actual;        // "Tops" es más exacto que "Playeras"
+  if(actual==='Conjuntos') return actual;
+  return c;
+}
+let acmCambios=[];
+function abrirAcomodar(){
+  acmCambios=productos.map(p=>{
+    const m=marcaOficial(p), c=categoriaOficial(p), mAnt=(p.marca||'').trim(), cAnt=p.categoria||'';
+    const cambia={}; if(m&&m!==mAnt) cambia.marca=m; if(c!==cAnt) cambia.categoria=c;
+    return Object.keys(cambia).length?{p,cambia,mAnt,cAnt}:null; }).filter(Boolean);
+  const sinMarca=productos.filter(p=>!DOMINIOS.some(d=>d[0].test(marcaOficial(p)))&&!ALIAS.some(a=>a[1]===marcaOficial(p)));
+  const fila=(x,i)=>'<label class="acm-it"><input type="checkbox" data-acm="'+i+'" checked><div><b>'+esc(x.p.nombre||'(sin nombre)')+'</b>'+
+    (x.cambia.marca?'<small>Marca: <span class="de">'+esc(x.mAnt||'vacía')+'</span> → <b style="display:inline">'+esc(x.cambia.marca)+'</b>'+(x.mAnt&&!ALIAS.some(a=>a[0].test(x.mAnt))?' · “'+esc(x.mAnt)+'” se guarda como colección':'')+'</small>':'')+
+    (x.cambia.categoria!==undefined?'<small>Categoría: <span class="de">'+esc(x.cAnt||'sin categoría')+'</span> → <b style="display:inline">'+esc(x.cambia.categoria||'sin categoría')+'</b></small>':'')+'</div></label>';
+  $('#acmLista').innerHTML=(acmCambios.length?'<p class="acm-h">'+acmCambios.length+(acmCambios.length===1?' cambio':' cambios')+' (quita la palomita a lo que no quieras)</p>'+acmCambios.map(fila).join(''):'<p>✅ Todo está acomodado. No hay nada que cambiar.</p>')+
+    (sinMarca.length?'<p class="acm-h">No supe la marca de '+sinMarca.length+'</p><p class="note" style="margin:0 0 6px">No tienen link de una tienda que conozca. Ábrelos y pon la marca a mano.</p>'+sinMarca.map(p=>'<div class="acm-it"><div style="flex:1"><b>'+esc(p.nombre||'(sin nombre)')+'</b><small>Marca: '+esc(p.marca||'vacía')+'</small>'+
+      '<select data-acm-m="'+esc(p.id)+'" style="margin-top:6px"><option value="">Elegir la marca…</option>'+ALIAS.map(a=>'<option>'+esc(a[1])+'</option>').join('')+'</select></div></div>').join(''):'');
+  $('#acmAplicar').hidden=!acmCambios.length&&!sinMarca.length; $('#acmAplicar').disabled=false; $('#acmAplicar').textContent='Aplicar cambios';
+  $('#acm').hidden=false;
+}
+$('#btnAcomodar').addEventListener('click',abrirAcomodar);
+$('#acmCerrar').addEventListener('click',()=>{ $('#acm').hidden=true; });
+$('#acm').addEventListener('click',e=>{ if(e.target.id==='acm') $('#acm').hidden=true; });
+$('#acmAplicar').addEventListener('click',async()=>{
+  const sel=[...document.querySelectorAll('[data-acm]')].filter(i=>i.checked).map(i=>acmCambios[+i.dataset.acm]);
+  // los que elegiste a mano en "No supe la marca"
+  [...document.querySelectorAll('[data-acm-m]')].filter(s=>s.value).forEach(s=>{ const p=productos.find(x=>x.id===s.dataset.acmM); if(!p) return;
+    const ya=sel.find(x=>x.p===p); if(ya){ ya.cambia.marca=s.value; } else sel.push({p,cambia:{marca:s.value},mAnt:(p.marca||'').trim(),cAnt:p.categoria||''}); });
+  if(!sel.length){ $('#acm').hidden=true; return; }
+  $('#acmAplicar').disabled=true; $('#acmAplicar').textContent='Acomodando…';
+  try{
+    for(const x of sel){
+      const p=x.p;
+      if(x.cambia.marca){ if(x.mAnt&&!ALIAS.some(a=>a[0].test(x.mAnt))&&!p.coleccion) p.coleccion=x.mAnt; p.marca=x.cambia.marca; }
+      if(x.cambia.categoria!==undefined) p.categoria=x.cambia.categoria;
+      p.updatedAt=Date.now(); await put('productos',JSON.parse(JSON.stringify(p)));
+    }
+    productos=await getAll('productos'); await refreshList();
+    $('#acm').hidden=true; toast('✅ Acomodé '+sel.length+(sel.length===1?' producto':' productos')+'. Publica tu tienda para que se vea.');
+  }catch(e){ $('#acmAplicar').disabled=false; $('#acmAplicar').textContent='Aplicar cambios'; toast('No se pudo guardar. Intenta otra vez.'); }
+});
+
 async function armarTienda(){
   const pubs=productos.filter(p=>p.enTienda!==false&&B(p)!=='agotado'&&(p.nombre||'').trim());
   const fotos=await getAll('fotos');
@@ -1101,7 +1193,7 @@ async function armarTienda(){
     }
     // el precio del producto es el de su color principal; los colores más baratos salen en "Ofertas" de la tienda
     const base=principal&&principal.precioBase||precioDe(p), venta=principal&&principal.precio||precioVenta(p);
-    lista.push({id:p.id,nombre:(p.nombre||'').trim(),marca:(p.marca||'').trim(),categoria:p.categoria||'',linea:p.linea||'',descripcion:(p.descripcion||'').trim(),
+    lista.push({id:p.id,nombre:(p.nombre||'').trim(),marca:marcaOficial(p),coleccion:(p.coleccion||'').trim(),categoria:p.categoria||'',linea:p.linea||'',descripcion:(p.descripcion||'').trim(),
       estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
       precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
   }
