@@ -1141,9 +1141,11 @@ function ntGuardarTodas(a){ try{ localStorage.setItem(NT_KEY,JSON.stringify(a));
 const ntHoy=()=>{ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
 function ntDestinos(){
   const ms=[...new Set(ALIAS.map(a=>a[1]).concat(productos.map(p=>marcaOficial(p))).filter(Boolean))].sort();
-  return [['','Ningún lado (solo la foto)'],['early','El Early Access (con contraseña)'],['ofertas','Ofertas y últimas tallas'],['drops','Drops y preventas']].concat(ms.map(m=>['marca:'+m,'Solo '+m])).concat([['url','Un link']]);
+  const cols=[...new Map(productos.map(p=>[marcaOficial(p),coleccionOficial(p)]).filter(x=>x[1]).map(x=>[x.join('|'),x])).values()].sort((a,b)=>a.join().localeCompare(b.join()));
+  return [['','Ningún lado (solo la foto)'],['early','El Early Access (con contraseña)'],['ofertas','Ofertas y últimas tallas'],['drops','Drops y preventas']].concat(ms.map(m=>['marca:'+m,'Solo '+m]))
+    .concat(cols.map(c=>['col:'+c[0]+'|'+c[1],'Solo la colección '+c[1]+' ('+c[0]+')'])).concat([['url','Un link']]);
 }
-function ntDestTxt(n){ const d=ntDestinos().find(x=>x[0]===n.destino); return n.destino==='url'?'Link':d?d[1].replace(/^Solo /,''):'—'; }
+function ntDestTxt(n){ if((n.destino||'').startsWith('col:')) return n.destino.slice(4).split('|').reverse().join(' · '); const d=ntDestinos().find(x=>x[0]===n.destino); return n.destino==='url'?'Link':d?d[1].replace(/^Solo /,''):'—'; }
 function ntPintar(){
   const a=ntLeer(), hoy=ntHoy();
   $('#ntLista').innerHTML=a.length?a.map((n,i)=>{ const venc=n.fin&&n.fin<hoy;
@@ -1155,7 +1157,8 @@ function ntForm(n){
   ntEdit=n?n.id:null; ntFotoData=n?n.foto||'':'';
   $('#ntFormTit').textContent=n?'Editar noticia':'Nueva noticia';
   $('#ntTit').value=n?n.titulo||'':''; $('#ntTxt').value=n?n.texto||'':''; $('#ntBtn').value=n?n.boton||'':''; $('#ntFin').value=n?n.fin||'':'';
-  $('#ntDest').innerHTML=ntDestinos().map(d=>'<option value="'+esc(d[0])+'">'+esc(d[1])+'</option>').join(''); $('#ntDest').value=n?n.destino||'':'';
+  const ds=ntDestinos(); if(n&&n.destino&&!ds.some(d=>d[0]===n.destino)) ds.push([n.destino,(n.destino.startsWith('col:')?'Solo la colección ':'')+ntDestTxt(n)]);
+  $('#ntDest').innerHTML=ds.map(d=>'<option value="'+esc(d[0])+'">'+esc(d[1])+'</option>').join(''); $('#ntDest').value=n?n.destino||'':'';
   $('#ntLink').value=n?n.link||'':''; $('#ntLinkLbl').hidden=$('#ntDest').value!=='url';
   $('#ntFotoImg').src=ntFotoData; $('#ntFotoImg').hidden=!ntFotoData; $('#ntFotoTxt').hidden=!!ntFotoData;
   $('#ntErr').hidden=true; $('#ntForm').hidden=false; $('#ntAgregar').hidden=true; $('#ntTit').focus();
