@@ -1339,20 +1339,27 @@ $('#btnPublicar').addEventListener('click',async()=>{
     const tree=await gh('/git/trees/'+commit.tree.sha+'?recursive=1');
     const remoto=new Map((tree.tree||[]).filter(e=>e.type==='blob').map(e=>[e.path,e]));
     const {datos,fotos}=await armarTienda();
-    const entradas=[...remoto.values()].filter(e=>!e.path.startsWith('fotos/')&&e.path!=='datos.json').map(e=>({path:e.path,mode:e.mode,type:'blob',sha:e.sha}));
-    let n=0;
+    const subidas=[]; let n=0;
     for(const f of fotos){
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
       let sha=ya&&ya.sha;
       if(!sha){ const bytes=await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
-      entradas.push({path:f.path,mode:'100644',type:'blob',sha});
+      subidas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
-    entradas.push({path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)});
-    estado('Guardando cambios…');
-    const nuevo=await gh('/git/trees',{method:'POST',body:{tree:entradas}});
-    const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref.object.sha]}});
-    await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}});
+    // Se arma sobre la versión MÁS NUEVA de la tienda: si mientras subías fotos cambió algo (por ejemplo una mejora de la página),
+    // GitHub rechaza el cambio; entonces se vuelve a leer y se intenta otra vez, sin volver a subir las fotos.
+    for(let vuelta=1;;vuelta++){
+      estado(vuelta===1?'Guardando cambios…':'La tienda cambió mientras publicabas; lo acomodo sobre lo más nuevo…');
+      const ref2=vuelta===1?ref:await gh('/git/ref/heads/main');
+      const base=vuelta===1?tree:await gh('/git/trees/'+(await gh('/git/commits/'+ref2.object.sha)).tree.sha+'?recursive=1');
+      const entradas=(base.tree||[]).filter(e=>e.type==='blob'&&!e.path.startsWith('fotos/')&&e.path!=='datos.json').map(e=>({path:e.path,mode:e.mode,type:'blob',sha:e.sha}))
+        .concat(subidas,[{path:'datos.json',mode:'100644',type:'blob',content:JSON.stringify(datos)}]);
+      const nuevo=await gh('/git/trees',{method:'POST',body:{tree:entradas}});
+      const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref2.object.sha]}});
+      try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
+      catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
+    }
     estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privadoN?' + '+datos.privadoN+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
     toast('Tienda publicada');
   }catch(e){
@@ -1360,7 +1367,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
     estado(s===401?'La llave no es válida o ya venció. Crea una nueva en GitHub.':
       (s===403||s===404)?'No se encontró el repositorio o la llave no tiene permiso para “'+GH.repo+'”.':
       s===409?'El repositorio está vacío. Primero sube los archivos de la tienda.':
-      s===422?'GitHub rechazó los cambios. Intenta de nuevo.':
+      s===422?'GitHub rechazó los cambios'+(e.msg?' (“'+e.msg+'”)':'')+'. Intenta de nuevo; si vuelve a salir, mándale foto de este mensaje a quien te ayuda.':
       'No se pudo publicar ('+((e&&(e.msg||e.message))||'sin conexión')+(s?' · '+s:'')+'). Revisa tu internet e intenta de nuevo.');
   }
   btn.disabled=false; btn.textContent='Publicar tienda';
