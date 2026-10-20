@@ -119,6 +119,7 @@ label>input,label>textarea,label>select{margin-top:6px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 @media (max-width:360px){.grid2{grid-template-columns:1fr}}
 .note{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+.ea-col{border:1px solid var(--line);border-radius:12px;padding:10px 12px 2px;margin:4px 0 12px}
 .acm-it{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .acm-it input{margin-top:3px;width:18px;height:18px;flex-shrink:0}
 .acm-it b{display:block}.acm-it small{color:var(--muted);display:block}
@@ -367,6 +368,12 @@ label>input,label>textarea,label>select{margin-top:6px}
     <label>Llave de GitHub <span class="opt">(se guarda solo en este aparato)</span><input id="ghToken" type="password" autocomplete="off" autocapitalize="off" placeholder="github_pat_…"></label>
     <label>Contraseña del Early Access en tu tienda <span class="opt">(vacío = se ve sin contraseña)</span><input id="ghClave" autocomplete="off" autocapitalize="off" placeholder="Ej. FWMX-EA27"></label>
     <div id="ghClaves"></div>
+    <div class="ea-col">
+      <p class="note" style="margin:4px 0 8px"><b>Pasar una colección a Early Access</b> (con candado)</p>
+      <label>Colección<select id="eaCol"></select></label>
+      <div class="grid2"><label>Fecha y hora del drop<input type="datetime-local" id="eaColFecha"></label><label>Contraseña de este drop<input id="eaColClave" autocomplete="off" autocapitalize="off" placeholder="FWMX-SAM22"></label></div>
+      <button type="button" class="btn ghost full" id="eaColBtn">🔒 Pasar a Early Access</button>
+    </div>
     <p class="note" style="margin-top:-4px">Con contraseña, tus productos de Early Access que tengan “Mostrar en la tienda” se publican bajo llave: solo los ve quien la escriba.</p>
     <button type="button" class="btn full" id="btnPublicar">Publicar tienda</button>
     <p class="note" id="pubStatus" style="margin-top:8px"></p>
@@ -1089,8 +1096,28 @@ function pintarClaves(){
   const ms=[...new Set(productos.filter(p=>B(p)==='early'&&p.enTienda!==false).map(p=>marcaOficial(p)).filter(Boolean))].sort();
   $('#ghClaves').innerHTML=ms.length?'<p class="note" style="margin:0 0 6px">Contraseña de cada drop (vacío = usa la de arriba):</p>'+ms.map(m=>'<label>'+esc(m)+'<input data-clave-marca="'+esc(m)+'" value="'+esc((GH.claves||{})[m]||'')+'" placeholder="'+esc(GH.clave||'Ej. FWMX-EA27')+'" autocomplete="off" autocapitalize="off"></label>').join(''):'';
 }
-function abrirAj(){ pintarGH(); pintarClaves(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
+// colecciones que tienes (por ejemplo "Gymshark x Sam Sulek"), para pasarlas completas a Early Access
+function colsCatalogo(){ const m=new Map(); productos.forEach(p=>{ const c=coleccionOficial(p); if(!c) return; const k=marcaOficial(p)+'|'+c; if(!m.has(k)) m.set(k,{marca:marcaOficial(p),col:c,ps:[]}); m.get(k).ps.push(p); }); return [...m.values()].sort((a,b)=>a.col.localeCompare(b.col)); }
+function pintarEaCol(){ const cs=colsCatalogo();
+  $('#eaCol').innerHTML=cs.length?cs.map((c,i)=>'<option value="'+i+'">'+esc(c.col)+' ('+esc(c.marca)+') · '+c.ps.length+' productos'+(c.ps.every(p=>B(p)==='early')?' · ya en Early Access':'')+'</option>').join(''):'<option value="">No tienes colecciones guardadas</option>';
+  const c=cs[0]; $('#eaColClave').value=c?((GH.claves||{})[c.marca]||''):''; $('#eaColFecha').value=c?(c.ps.map(p=>p.dropFecha).filter(Boolean)[0]||''):''; }
+function abrirAj(){ pintarGH(); pintarClaves(); pintarEaCol(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
 $('#btnAjustes').addEventListener('click',abrirAj);
+$('#eaCol').addEventListener('change',()=>{ const c=colsCatalogo()[+$('#eaCol').value]; if(!c) return; $('#eaColClave').value=(GH.claves||{})[c.marca]||''; $('#eaColFecha').value=c.ps.map(p=>p.dropFecha).filter(Boolean)[0]||''; });
+$('#eaColBtn').addEventListener('click',async()=>{
+  const c=colsCatalogo()[+$('#eaCol').value]; if(!c){ toast('Primero manda una colección con la extensión'); return; }
+  const fecha=$('#eaColFecha').value, clave=$('#eaColClave').value.trim();
+  if(!fecha){ toast('Pon la fecha y hora del drop'); return; }
+  if(!clave&&!GH.clave){ toast('Pon una contraseña para este drop'); return; }
+  const b=$('#eaColBtn'); b.disabled=true; b.textContent='Pasando…';
+  try{
+    for(const p of c.ps){ p.estado='early'; p.dropFecha=fecha; p.enTienda=true; p.updatedAt=Date.now(); await put('productos',JSON.parse(JSON.stringify(p))); }
+    leerGH(); GH.claves=GH.claves||{}; if(clave) GH.claves[c.marca]=clave; try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){}
+    productos=await getAll('productos'); await refreshList(); pintarClaves(); pintarEaCol();
+    toast('🔒 '+c.ps.length+' productos de '+c.col+' en Early Access. Ahora pica Publicar tienda.');
+  }catch(e){ toast('No se pudo cambiar. Intenta otra vez.'); }
+  b.disabled=false; b.textContent='🔒 Pasar a Early Access';
+});
 $('#bkWarn').addEventListener('click',abrirAj);
 $('#ajClose').addEventListener('click',()=>{ $('#aj').hidden=true; });
 $('#aj').addEventListener('click',e=>{ if(e.target.id==='aj') $('#aj').hidden=true; });
