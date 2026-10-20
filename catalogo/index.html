@@ -1342,7 +1342,7 @@ async function armarTienda(){
     const dest=ea.find(p=>p.destacado&&((p.colores[0]||{}).fotos||[]).length)||ea.find(p=>((p.colores[0]||{}).fotos||[]).length);
     const cuenta={}; ea.forEach(p=>{ if(p.marca) cuenta[p.marca]=(cuenta[p.marca]||0)+1; });
     datos.privadoPortada=dest?dest.colores[0].fotos[0]:'';
-    datos.privadoMarca=Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a])[0]||'';
+    datos.privadoMarca=Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,3).join(' y ').replace(/ y (?=.* y )/g,', ')||''; // varias marcas: "YoungLA y Gymshark"
     datos.privadoFecha=ea.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''; }
   // portada: noticias vigentes, en el orden que las pusiste
   const hoyN=ntHoy(); datos.portada=[];
