@@ -366,6 +366,7 @@ label>input,label>textarea,label>select{margin-top:6px}
     </div>
     <label>Llave de GitHub <span class="opt">(se guarda solo en este aparato)</span><input id="ghToken" type="password" autocomplete="off" autocapitalize="off" placeholder="github_pat_…"></label>
     <label>Contraseña del Early Access en tu tienda <span class="opt">(vacío = se ve sin contraseña)</span><input id="ghClave" autocomplete="off" autocapitalize="off" placeholder="Ej. FWMX-EA27"></label>
+    <div id="ghClaves"></div>
     <p class="note" style="margin-top:-4px">Con contraseña, tus productos de Early Access que tengan “Mostrar en la tienda” se publican bajo llave: solo los ve quien la escriba.</p>
     <button type="button" class="btn full" id="btnPublicar">Publicar tienda</button>
     <p class="note" id="pubStatus" style="margin-top:8px"></p>
@@ -1083,7 +1084,12 @@ $('#btnDel').addEventListener('click',async()=>{
 });
 
 /* ---------- ajustes ---------- */
-function abrirAj(){ pintarGH(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
+// Early Access por marca: cada marca con drop en Early Access puede tener su propia contraseña
+function pintarClaves(){
+  const ms=[...new Set(productos.filter(p=>B(p)==='early'&&p.enTienda!==false).map(p=>marcaOficial(p)).filter(Boolean))].sort();
+  $('#ghClaves').innerHTML=ms.length?'<p class="note" style="margin:0 0 6px">Contraseña de cada drop (vacío = usa la de arriba):</p>'+ms.map(m=>'<label>'+esc(m)+'<input data-clave-marca="'+esc(m)+'" value="'+esc((GH.claves||{})[m]||'')+'" placeholder="'+esc(GH.clave||'Ej. FWMX-EA27')+'" autocomplete="off" autocapitalize="off"></label>').join(''):'';
+}
+function abrirAj(){ pintarGH(); pintarClaves(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
 $('#btnAjustes').addEventListener('click',abrirAj);
 $('#bkWarn').addEventListener('click',abrirAj);
 $('#ajClose').addEventListener('click',()=>{ $('#aj').hidden=true; });
@@ -1099,7 +1105,7 @@ $('#ajGuardar').addEventListener('click',async()=>{
 
 /* ---------- publicar la tienda en GitHub ---------- */
 const GH_KEY=CFG.db+'_github';
-let GH={user:'FITWEARMX',repo:'tienda',token:'',clave:''};
+let GH={user:'FITWEARMX',repo:'tienda',token:'',clave:'',claves:{}};
 try{ Object.assign(GH,JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){}
 function pintarGH(){
   $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token; $('#ghClave').value=GH.clave||'';
@@ -1107,7 +1113,8 @@ function pintarGH(){
   $('#pubLink').href=url; $('#pubLink').textContent='Ver mi tienda: '+url.replace('https://','');
   if(CFG.demo){ $('#btnPublicar').disabled=true; $('#pubStatus').textContent='En la versión de prueba no se publica nada.'; }
 }
-function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); GH.clave=$('#ghClave').value.trim(); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
+function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); GH.clave=$('#ghClave').value.trim();
+  GH.claves=GH.claves||{}; document.querySelectorAll('[data-clave-marca]').forEach(i=>{ const v=i.value.trim(); if(v) GH.claves[i.dataset.claveMarca]=v; else delete GH.claves[i.dataset.claveMarca]; }); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
 const dormir=ms=>new Promise(r=>setTimeout(r,ms));
 async function gh(path,opt,intento){
   opt=opt||{}; intento=intento||0;
@@ -1337,13 +1344,18 @@ async function armarTienda(){
   const datos={actualizado:new Date().toISOString(),productos:lista};
   // Early Access con contraseña: esos productos se publican cifrados (sin la contraseña no se pueden leer)
   const ea=lista.filter(p=>p.estado==='early');
-  if(GH.clave&&ea.length){ datos.productos=lista.filter(p=>p.estado!=='early'); datos.privado=await cifrar(JSON.stringify(ea),GH.clave); datos.privadoN=ea.length;
-    // portada para presumir el drop (se ve sin contraseña): la foto del producto con ⭐ Destacado, o la del primero
-    const dest=ea.find(p=>p.destacado&&((p.colores[0]||{}).fotos||[]).length)||ea.find(p=>((p.colores[0]||{}).fotos||[]).length);
-    const cuenta={}; ea.forEach(p=>{ if(p.marca) cuenta[p.marca]=(cuenta[p.marca]||0)+1; });
-    datos.privadoPortada=dest?dest.colores[0].fotos[0]:'';
-    datos.privadoMarca=Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,3).join(' y ').replace(/ y (?=.* y )/g,', ')||''; // varias marcas: "YoungLA y Gymshark"
-    datos.privadoFecha=ea.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''; }
+  // cada marca con su contraseña (o la general); los que comparten contraseña van juntos en un mismo drop
+  const claveDe=p=>((GH.claves||{})[p.marca])||GH.clave||'';
+  const grupos=new Map(); ea.filter(claveDe).forEach(p=>{ const c=claveDe(p); if(!grupos.has(c)) grupos.set(c,[]); grupos.get(c).push(p); });
+  if(grupos.size){ const bajo=new Set([...grupos.values()].flat()); datos.productos=lista.filter(p=>!bajo.has(p)); datos.privados=[];
+    for(const [clave,ps] of grupos){
+      // portada para presumir el drop (se ve sin contraseña): la foto del producto con ⭐ Destacado, o la del primero
+      const dest=ps.find(p=>p.destacado&&((p.colores[0]||{}).fotos||[]).length)||ps.find(p=>((p.colores[0]||{}).fotos||[]).length);
+      const cuenta={}; ps.forEach(p=>{ if(p.marca) cuenta[p.marca]=(cuenta[p.marca]||0)+1; });
+      datos.privados.push({privado:await cifrar(JSON.stringify(ps),clave),n:ps.length,portada:dest?dest.colores[0].fotos[0]:'',
+        marca:Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,3).join(' y ').replace(/ y (?=.* y )/g,', ')||'',fecha:ps.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''}); }
+    // compatibilidad: el primero también en el formato de antes
+    const g0=datos.privados[0]; datos.privado=g0.privado; datos.privadoN=g0.n; datos.privadoPortada=g0.portada; datos.privadoMarca=g0.marca; datos.privadoFecha=g0.fecha; }
   // portada: noticias vigentes, en el orden que las pusiste
   const hoyN=ntHoy(); datos.portada=[];
   for(const n of ntLeer()){ if(!n.foto||(n.fin&&n.fin<hoyN)) continue;
@@ -1405,7 +1417,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
       catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
     }
-    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privadoN?' + '+datos.privadoN+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
+    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privados?' + '+datos.privados.map(g=>g.n+' de '+(g.marca||'Early Access')).join(' y ')+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
     toast('Tienda publicada');
   }catch(e){
     const s=e&&e.status;
