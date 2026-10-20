@@ -212,6 +212,7 @@ label>input,label>textarea,label>select{margin-top:6px}
   <div class="bar">
     <button type="button" class="btn ghost" id="btnListo">‹ Listo</button>
     <div class="t"><b id="barName">Producto</b><small class="save" id="saveState" data-s=""></small></div>
+    <button type="button" class="btn ghost sm" id="btnMkt" title="Copia el texto y te da las fotos para publicarlo en Facebook Marketplace">📋 Marketplace</button>
     <button type="button" class="btn ghost sm" id="btnShare">Compartir</button>
   </div>
   <div class="wrap" id="form">
@@ -1078,6 +1079,26 @@ $('#btnShare').addEventListener('click',async()=>{
   await compartirArchivo(new File([b],name,{type:'image/jpeg'}));
 });
 
+/* Facebook Marketplace: copia título, precio y descripción, te da las fotos del color y abre Marketplace. Tú publicas. */
+$('#btnMkt').addEventListener('click',async()=>{
+  if(!cur) return; await guardar(true);
+  const c=(cur.colores||[]).find(x=>x.k===curColor)||(cur.colores||[])[0]||{};
+  const ts=Object.keys(c.tallas||{}), pr=precioColor(cur,c), marca=marcaOficial(cur);
+  const titulo=((marca?marca+' ':'')+(cur.nombre||'')+(c.nombre?' '+c.nombre:'')).slice(0,99);
+  const texto=titulo+'\nPrecio: '+money(pr)+' MXN\n\n'+[(cur.descripcion||'').trim(),'✅ 100% original, importado de Estados Unidos.',
+    ts.length?'📏 Tallas: '+ts.join(', '):'', c.nombre?'🎨 Color: '+c.nombre:'',
+    B(cur)==='disponible'?'🚚 Entrega inmediata en Monterrey · Envíos a todo México':'📦 Sobre pedido: llega en 2 a 3 semanas · Ordena con '+money(Math.ceil(pr*.25/10)*10),
+    '💬 Escríbeme para apartar tu talla · Tienda: fitwearmx.github.io/tienda'].filter(Boolean).join('\n');
+  try{ await navigator.clipboard.writeText(texto); }catch(e){}
+  const fs=curFotos.filter(f=>!c.k||f.colorK===c.k).sort((a,b)=>(a.fecha||0)-(b.fecha||0)).slice(0,10);
+  const files=fs.map((f,i)=>new File([f.blob],(titulo.replace(/[^\w]+/g,'_')||'foto')+'_'+(i+1)+'.jpg',{type:'image/jpeg'}));
+  let ok=false;
+  try{ if(files.length&&navigator.canShare&&navigator.canShare({files})){ await navigator.share({files,text:texto}); ok=true; } }catch(e){ if(e&&e.name==='AbortError') ok=true; }
+  if(!ok) for(const f of files){ const u=URL.createObjectURL(f),a=document.createElement('a'); a.href=u; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); await dormir(250); }
+  window.open('https://www.facebook.com/marketplace/create/item','_blank','noopener');
+  toast('📋 Texto copiado y '+files.length+' fotos listas. En Marketplace: sube las fotos, pega el texto y publica.');
+});
+
 /* eliminar producto */
 let delArm=false, delTimer=null;
 function confirmDel(on){ delArm=on; $('#btnDel').textContent=on?'Toca otra vez para eliminar (también sus fotos)':'Eliminar producto'; }
@@ -1396,6 +1417,27 @@ async function armarTienda(){
   datos.portadaOrden=ntLista().filter(n=>!n.oculta&&(n.fijo||vig.has(n.id))).map(n=>n.fijo==='ea'?'ea':n.fijo==='dest'?'destacado':n.id);
   return {datos,fotos:usadas};
 }
+/* Catálogo para Facebook e Instagram (Commerce Manager): un renglón por color, con fotos, precio y si está disponible.
+   Solo lleva lo público (nada del Early Access con contraseña). Se publica como tienda/facebook.csv */
+const TIENDA_URL='https://fitwearmx.github.io/tienda/';
+function feedFacebook(datos){
+  const q=v=>{ v=String(v==null?'':v).replace(/\r?\n/g,' ').trim(); return /[",]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const mx=v=>Number(v||0).toFixed(2)+' MXN';
+  const filas=[['id','item_group_id','title','description','availability','condition','price','sale_price','link','image_link','additional_image_link','brand','color','gender','age_group','google_product_category']];
+  for(const p of datos.productos){
+    for(const c of p.colores||[]){
+      const fotos=(c.fotos||[]); if(!fotos.length) continue;
+      const pr=Number(c.precio||p.precio||0), antes=Number(c.precioAntes||0); if(!pr) continue;
+      const OT=['XXS','XS','S','M','L','XL','2XL','3XL','4XL','5XL'], ts=Object.keys(c.tallas||{}).sort((x,y)=>{ const i=OT.indexOf(x),j=OT.indexOf(y); return (i<0?99:i)-(j<0?99:j)||String(x).localeCompare(y); });
+      const disp=c.agotado?'out of stock':p.estado==='disponible'?'in stock':'available for order';
+      const desc=[p.descripcion||(p.nombre+' de '+p.marca+'. 100% original, importado de Estados Unidos.'),ts.length?'Tallas: '+ts.join(', ')+'.':'',
+        p.estado==='disponible'?'Entrega inmediata en Monterrey, envíos a todo México.':'Sobre pedido: llega en 2 a 3 semanas. Ordena con anticipo.'].filter(Boolean).join(' ');
+      filas.push([p.id+'-'+c.k,p.id,((p.marca?p.marca+' ':'')+p.nombre+(c.nombre?' - '+c.nombre:'')).slice(0,150),desc.slice(0,5000),disp,'new',
+        antes>pr?mx(antes):mx(pr),antes>pr?mx(pr):'',TIENDA_URL+'#'+encodeURIComponent(p.id),TIENDA_URL+fotos[0],fotos.slice(1,11).map(x=>TIENDA_URL+x).join(','),
+        p.marca||'FITWEARMX',c.nombre||'',p.linea==='mujer'?'female':p.linea==='hombre'?'male':'unisex','adult','Apparel & Accessories > Clothing']); }
+  }
+  return filas.map(r=>r.map(q).join(',')).join('\n')+'\n';
+}
 async function cifrar(texto,clave){
   const sal=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(clave),'PBKDF2',false,['deriveKey']);
@@ -1426,6 +1468,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
     }
     estado('Guardando tus datos…');
     const datosSha=(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(datos),encoding:'utf-8'}})).sha;
+    const feedSha=(await gh('/git/blobs',{method:'POST',body:{content:feedFacebook(datos),encoding:'utf-8'}})).sha;
     // Solo se manda lo que cambió (fotos nuevas, fotos que ya no se usan y los datos) sobre la versión MÁS NUEVA de la tienda.
     // Mandar la lista completa (más de mil fotos) hacía que GitHub tardara de más y la rechazara.
     // Si mientras subías fotos cambió algo (por ejemplo una mejora de la página), se vuelve a leer y se intenta otra vez.
@@ -1438,7 +1481,8 @@ $('#btnPublicar').addEventListener('click',async()=>{
       const usa=new Set(subidas.map(x=>x.path));
       const entradas=subidas.filter(x=>hay.get(x.path)!==x.sha)
         .concat([...hay.keys()].filter(p=>p.startsWith('fotos/')&&!usa.has(p)).map(p=>({path:p,mode:'100644',type:'blob',sha:null}))) // fotos que ya no se usan
-        .concat(hay.get('datos.json')!==datosSha?[{path:'datos.json',mode:'100644',type:'blob',sha:datosSha}]:[]);
+        .concat(hay.get('datos.json')!==datosSha?[{path:'datos.json',mode:'100644',type:'blob',sha:datosSha}]:[])
+        .concat(hay.get('facebook.csv')!==feedSha?[{path:'facebook.csv',mode:'100644',type:'blob',sha:feedSha}]:[]);
       const nuevo=entradas.length?await gh('/git/trees',{method:'POST',body:{base_tree:baseSha,tree:entradas}}):{sha:baseSha};
       const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref2.object.sha]}});
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
