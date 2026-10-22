@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Recortador de Fondos</title>
+<link rel="icon" href="../icon-180.png">
+<meta name="theme-color" content="#0d1117">
+<style>
+  /* Quita el fondo de muchas fotos a la vez y lo pone blanco, negro o del color que elijas.
+     Todo pasa en tu computadora: las fotos no se suben a ningún lado. */
+  :root {
+    --bg: #0d1117; --bg-card: #161b22; --bg-card-2: #1c2129; --border: #2a313c;
+    --text-main: #e6edf3; --text-muted: #8b949e; --accent: #22d3ee; --accent-2: #34d399;
+    --danger: #f87171; --accent-soft: rgba(34, 211, 238, 0.12); --radius: 16px; --radius-sm: 10px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at top left, #131920, var(--bg) 60%) fixed, var(--bg);
+    color: var(--text-main);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 16px 80px; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 {
+    font-size: clamp(1.5rem, 4vw, 2.1rem); margin: 0 0 6px; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { margin: 0; color: var(--text-muted); }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  .opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+  .grupo h3 { margin: 0 0 8px; font-size: .85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-card-2); cursor: pointer; font-size: .92rem; user-select: none;
+  }
+  .chip input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .muestra { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #555; display: inline-block; }
+  .transp { background: repeating-conic-gradient(#888 0 25%, #ddd 0 50%) 0 0 / 8px 8px; }
+  input[type=color] { width: 34px; height: 30px; border: 1px solid var(--border); background: none; border-radius: 8px; padding: 0; cursor: pointer; vertical-align: middle; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  label.check { display: flex; align-items: center; gap: 8px; font-size: .92rem; margin-top: 8px; cursor: pointer; }
+  label.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .hint { color: var(--text-muted); font-size: .82rem; margin-top: 6px; }
+
+  .zona {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 34px 16px; text-align: center;
+    background: var(--bg-card); cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 16px;
+  }
+  .zona.encima { border-color: var(--accent); background: var(--accent-soft); }
+  .zona .grande { font-size: 1.15rem; font-weight: 600; margin-bottom: 6px; }
+  .zona .botones { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+  button {
+    font: inherit; border: 1px solid var(--border); background: var(--bg-card-2); color: var(--text-main);
+    padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primario { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #06202a; border: none; font-weight: 700; }
+
+  .barra-estado { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .estado-texto { font-weight: 600; }
+  .estado-sub { color: var(--text-muted); font-size: .85rem; margin-top: 2px; min-height: 1.1em; }
+  .progreso { height: 8px; background: var(--bg-card-2); border-radius: 99px; overflow: hidden; margin-top: 12px; }
+  .progreso div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+  .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .foto { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+  .foto .vista { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .foto .vista canvas, .foto .vista img { max-width: 100%; max-height: 100%; display: block; }
+  .foto .vista img.antes { position: absolute; inset: 0; margin: auto; opacity: 0; transition: opacity .15s; background: var(--bg-card-2); }
+  .foto .vista:hover img.antes.si { opacity: 1; }
+  .foto .vista.fondo-t { background: repeating-conic-gradient(#555 0 25%, #777 0 50%) 0 0 / 16px 16px; }
+  .foto .pie { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--border); }
+  .foto .nombre { flex: 1; font-size: .78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .foto .pie button { padding: 3px 7px; font-size: .8rem; }
+  .etiqueta { position: absolute; top: 6px; left: 6px; font-size: .72rem; padding: 3px 8px; border-radius: 99px; background: rgba(0,0,0,.7); color: #fff; z-index: 2; }
+  .etiqueta.error { background: var(--danger); }
+  .girando { width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: gira .8s linear infinite; position: absolute; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  .vacio { text-align: center; color: var(--text-muted); padding: 10px; }
+  @media (max-width: 520px) { .rejilla { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Editor a mano */
+  .editor { position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .editor[hidden] { display: none; }
+  .editor .caja { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; width: min(1000px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 10px; }
+  .editor .herr { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .editor .herr .tam { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--text-muted); min-width: 180px; flex: 1; }
+  .editor .lienzo { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); overflow: hidden;
+    background: repeating-conic-gradient(#555 0 25%, #777 0 50%) 0 0 / 20px 20px; }
+  .editor canvas { max-width: 100%; max-height: 66vh; touch-action: none; cursor: none; display: block; }
+  .editor .fin { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  button.activo { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>✂️ Recortador de Fondos</h1>
+    <p>Arrastra tus fotos, la IA recorta la prenda y le pone el fondo que elijas. Todo en tu compu, sin subir nada.</p>
+  </header>
+
+  <section class="card">
+    <div class="opciones">
+      <div class="grupo">
+        <h3>Fondo</h3>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="fondo" value="#ffffff" checked><span><i class="muestra" style="background:#fff"></i>Blanco</span></label>
+          <label class="chip"><input type="radio" name="fondo" value="#000000"><span><i class="muestra" style="background:#000"></i>Negro</span></label>
+          <label class="chip"><input type="radio" name="fondo" value="transparente"><span><i class="muestra transp"></i>Transparente</span></label>
+          <label class="chip"><input type="radio" name="fondo" value="color"><span><i class="muestra" id="muestraColor" style="background:#f2f2f2"></i>Otro</span></label>
+          <input type="color" id="colorOtro" value="#f2f2f2" title="Elegir color">
+        </div>
+        <label class="check"><input type="checkbox" id="sombra">Sombrita suave abajo de la prenda</label>
+      </div>
+      <div class="grupo">
+        <h3>Encuadre</h3>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="encuadre" value="1:1" checked><span>Cuadrado 1:1</span></label>
+          <label class="chip"><input type="radio" name="encuadre" value="4:5"><span>Vertical 4:5</span></label>
+          <label class="chip"><input type="radio" name="encuadre" value="original"><span>Como la original</span></label>
+        </div>
+        <div id="margenBox">
+          <div class="hint" style="margin-top:10px">Espacio alrededor de la prenda: <b id="margenTxt">8%</b></div>
+          <input type="range" id="margen" min="0" max="25" value="8">
+        </div>
+      </div>
+      <div class="grupo">
+        <h3>Tamaño final</h3>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="tam" value="1080" checked><span>1080 px</span></label>
+          <label class="chip"><input type="radio" name="tam" value="1500"><span>1500 px</span></label>
+          <label class="chip"><input type="radio" name="tam" value="2000"><span>2000 px</span></label>
+        </div>
+        <div class="hint">1080 es el tamaño de Instagram y Marketplace.</div>
+      </div>
+      <div class="grupo">
+        <h3>Recorte</h3>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="calidad" value="isnet" checked><span>🎯 Máxima calidad</span></label>
+          <label class="chip"><input type="radio" name="calidad" value="isnet_fp16"><span>⚡ Más rápido</span></label>
+        </div>
+        <label class="check"><input type="checkbox" id="limpiar" checked>Quitar manchitas sueltas del fondo</label>
+        <div class="hint">La primera vez descarga la IA (unos segundos). Después ya queda guardada.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="zona" id="zona" tabindex="0" role="button" aria-label="Agregar fotos">
+    <div class="grande">📸 Arrastra aquí tus fotos o una carpeta completa</div>
+    <div class="hint">JPG, PNG o WEBP · puedes meter 50, 100 o las que quieras</div>
+    <div class="botones">
+      <button type="button" id="btnFotos" class="primario">Elegir fotos</button>
+      <button type="button" id="btnCarpeta">Elegir carpeta</button>
+    </div>
+    <input type="file" id="inFotos" accept="image/*" multiple hidden>
+    <input type="file" id="inCarpeta" webkitdirectory multiple hidden>
+  </div>
+
+  <section class="card" id="panel" hidden>
+    <div class="barra-estado">
+      <div>
+        <div class="estado-texto" id="estado">—</div>
+        <div class="estado-sub" id="estadoSub"></div>
+      </div>
+      <div class="acciones">
+        <button type="button" id="btnPausa">⏸ Pausar</button>
+        <button type="button" id="btnCarpetaGuardar">📁 Guardar en una carpeta</button>
+        <button type="button" id="btnZip" class="primario">📦 Descargar todas (ZIP)</button>
+        <button type="button" id="btnLimpiar">🗑 Quitar todas</button>
+      </div>
+    </div>
+    <div class="progreso"><div id="barra"></div></div>
+  </section>
+
+  <div class="rejilla" id="rejilla"></div>
+</div>
+
+
+<div class="editor" id="editor" hidden>
+  <div class="caja" role="dialog" aria-label="Retocar foto">
+    <div class="herr">
+      <button type="button" id="edBorrar" class="activo">🧽 Borrar</button>
+      <button type="button" id="edRestaurar">🖌 Restaurar</button>
+      <button type="button" id="edDeshacer">↩️ Deshacer</button>
+      <label class="tam">Pincel <input type="range" id="edPincel" min="4" max="200" value="40"></label>
+      <button type="button" id="edFondo" title="Ver contra otro fondo">🎨 Ver fondo</button>
+    </div>
+    <div class="hint">Pinta encima con el mouse o el dedo. <b>Borrar</b> quita lo que sobra; <b>Restaurar</b> regresa partes de la prenda que se comió la IA.</div>
+    <div class="lienzo"><canvas id="edLienzo"></canvas></div>
+    <div class="fin">
+      <button type="button" id="edCancelar">Cancelar</button>
+      <button type="button" id="edGuardar" class="primario">✅ Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm';
+
+const $ = id => document.getElementById(id);
+const items = [];
+let corriendo = false, pausado = false, sigId = 1;
+window.recortador = { items };
+const PREV = 420;            // tamaño de la vista previa
+const tiempos = [];          // segundos por foto, para calcular cuánto falta
+
+// ---------- Opciones ----------
+function opciones() {
+  const v = n => document.querySelector(`input[name=${n}]:checked`).value;
+  let fondo = v('fondo');
+  if (fondo === 'color') fondo = $('colorOtro').value;
+  return {
+    fondo, encuadre: v('encuadre'), tam: +v('tam'), calidad: v('calidad'),
+    margen: +$('margen').value / 100, sombra: $('sombra').checked, limpiar: $('limpiar').checked,
+  };
+}
+let tRepintar;
+function alCambiar() {
+  $('margenTxt').textContent = $('margen').value + '%';
+  $('margenBox').style.display = opciones().encuadre === 'original' ? 'none' : '';
+  $('muestraColor').style.background = $('colorOtro').value;
+  clearTimeout(tRepintar);
+  tRepintar = setTimeout(() => items.forEach(pintarVista), 60);
+}
+document.querySelectorAll('input[name=fondo],input[name=encuadre],input[name=tam],#margen,#sombra,#colorOtro')
+  .forEach(el => el.addEventListener('input', alCambiar));
+$('colorOtro').addEventListener('input', () => { document.querySelector('input[name=fondo][value=color]').checked = true; alCambiar(); });
+// Cambiar la calidad o la limpieza sí necesita volver a recortar
+document.querySelectorAll('#limpiar,input[name=calidad]').forEach(el => {
+  el.addEventListener('change', () => {
+    const listas = items.filter(i => i.estado === 'listo' || i.estado === 'error');
+    if (listas.length && confirm(`¿Volver a recortar las ${listas.length} fotos ya hechas con la opción nueva?`)) {
+      listas.forEach(i => { i.estado = 'espera'; pintarVista(i); });
+      correr();
+    }
+  });
+});
+
+// ---------- Agregar fotos ----------
+const esImagen = f => /^image\/(jpeg|png|webp|bmp|gif|avif)$/i.test(f.type) || /\.(jpe?g|png|webp|bmp|avif|heic)$/i.test(f.name);
+function agregar(archivos) {
+  const nuevos = [...archivos].filter(esImagen);
+  if (!nuevos.length) return;
+  nuevos.sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, 'es', { numeric: true }));
+  for (const file of nuevos) {
+    const it = { id: sigId++, file, nombre: file.name.replace(/\.[^.]+$/, ''), estado: 'espera', urlAntes: URL.createObjectURL(file) };
+    items.push(it);
+    crearTarjeta(it);
+  }
+  $('panel').hidden = false;
+  actualizarEstado();
+  correr();
+}
+$('btnFotos').onclick = e => { e.stopPropagation(); $('inFotos').click(); };
+$('btnCarpeta').onclick = e => { e.stopPropagation(); $('inCarpeta').click(); };
+$('zona').onclick = () => $('inFotos').click();
+$('zona').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('inFotos').click(); } };
+$('inFotos').onchange = e => { agregar(e.target.files); e.target.value = ''; };
+$('inCarpeta').onchange = e => { agregar(e.target.files); e.target.value = ''; };
+
+const zona = $('zona');
+['dragenter', 'dragover'].forEach(t => zona.addEventListener(t, e => { e.preventDefault(); zona.classList.add('encima'); }));
+['dragleave', 'drop'].forEach(t => zona.addEventListener(t, () => zona.classList.remove('encima')));
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  const entradas = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entradas.length) return agregar(e.dataTransfer.files);
+  const archivos = [];
+  async function leer(ent) {
+    if (ent.isFile) archivos.push(await new Promise((ok, mal) => ent.file(ok, mal)));
+    else if (ent.isDirectory) {
+      const lector = ent.createReader();
+      let lote;
+      do {
+        lote = await new Promise((ok, mal) => lector.readEntries(ok, mal));
+        for (const sub of lote) await leer(sub);
+      } while (lote.length);
+    }
+  }
+  for (const ent of entradas) await leer(ent);
+  agregar(archivos);
+});
+
+// ---------- Tarjetas ----------
+function crearTarjeta(it) {
+  const el = document.createElement('div');
+  el.className = 'foto';
+  el.innerHTML = `
+    <div class="vista"><span class="etiqueta">En fila</span><img class="antes" alt=""></div>
+    <div class="pie">
+      <span class="nombre"></span>
+      <button type="button" data-a="editar" title="Retocar a mano">✏️</button>
+      <button type="button" data-a="bajar" title="Descargar esta">⬇️</button>
+      <button type="button" data-a="otra" title="Volver a recortar">🔁</button>
+      <button type="button" data-a="quitar" title="Quitar">✕</button>
+    </div>`;
+  el.querySelector('.nombre').textContent = it.file.name;
+  el.querySelector('.nombre').title = it.file.webkitRelativePath || it.file.name;
+  const antes = el.querySelector('img.antes');
+  antes.src = it.urlAntes;
+  el.querySelector('.vista').title = 'Pasa el mouse para ver la original · clic para retocar';
+  el.querySelector('.vista').onclick = () => { if (it.estado === 'listo') abrirEditor(it); };
+  el.querySelector('[data-a=editar]').onclick = () => abrirEditor(it);
+  el.querySelector('[data-a=bajar]').onclick = () => bajarUna(it);
+  el.querySelector('[data-a=otra]').onclick = () => { it.estado = 'espera'; pintarVista(it); actualizarEstado(); correr(); };
+  el.querySelector('[data-a=quitar]').onclick = () => quitar(it);
+  it.el = el;
+  $('rejilla').appendChild(el);
+  pintarVista(it);
+}
+function pintarVista(it) {
+  if (!it.el) return;
+  const vista = it.el.querySelector('.vista');
+  const etq = vista.querySelector('.etiqueta');
+  const antes = vista.querySelector('img.antes');
+  vista.querySelector('.girando')?.remove();
+  vista.querySelector('canvas')?.remove();
+  it.el.querySelector('[data-a=bajar]').disabled = it.estado !== 'listo';
+  it.el.querySelector('[data-a=editar]').disabled = it.estado !== 'listo';
+  const o = opciones();
+  vista.classList.toggle('fondo-t', it.estado === 'listo' && o.fondo === 'transparente');
+  if (it.estado === 'listo') {
+    etq.hidden = true;
+    antes.classList.add('si');
+    const c = componer(it.prev, it.cajaPrev, it.prev.width, it.prev.height, o, PREV);
+    vista.insertBefore(c, antes);
+  } else {
+    antes.classList.remove('si');
+    antes.style.opacity = '.35';
+    etq.hidden = false;
+    etq.className = 'etiqueta' + (it.estado === 'error' ? ' error' : '');
+    etq.textContent = { espera: 'En fila', procesando: 'Recortando…', error: 'No se pudo · 🔁' }[it.estado];
+    if (it.estado === 'procesando') vista.insertAdjacentHTML('beforeend', '<div class="girando"></div>');
+    return;
+  }
+  antes.style.opacity = '';
+}
+function quitar(it) {
+  const i = items.indexOf(it);
+  if (i < 0) return;
+  if (it.estado === 'procesando') it.cancelada = true;
+  items.splice(i, 1);
+  it.el.remove();
+  URL.revokeObjectURL(it.urlAntes);
+  it.prev?.close?.();
+  actualizarEstado();
+}
+$('btnLimpiar').onclick = () => {
+  if (!items.length || !confirm('¿Quitar todas las fotos de la lista? (Tus archivos originales no se borran)')) return;
+  [...items].forEach(quitar);
+  $('panel').hidden = true;
+};
+$('btnPausa').onclick = () => {
+  pausado = !pausado;
+  $('btnPausa').textContent = pausado ? '▶️ Seguir' : '⏸ Pausar';
+  if (!pausado) correr();
+  actualizarEstado();
+};
+
+// ---------- Estado ----------
+let subTexto = '';
+function actualizarEstado() {
+  const total = items.length;
+  const listas = items.filter(i => i.estado === 'listo').length;
+  const errores = items.filter(i => i.estado === 'error').length;
+  const faltan = items.filter(i => i.estado === 'espera' || i.estado === 'procesando').length;
+  let txt = `${listas} de ${total} listas`;
+  if (errores) txt += ` · ${errores} con error`;
+  if (pausado && faltan) txt += ' · en pausa';
+  else if (!faltan && total) txt += ' ✅';
+  $('estado').textContent = txt;
+  let sub = subTexto;
+  if (!sub && faltan && tiempos.length && !pausado) {
+    const prom = tiempos.slice(-8).reduce((a, b) => a + b, 0) / Math.min(tiempos.length, 8);
+    const min = Math.ceil(prom * faltan / 60);
+    sub = `Faltan ${faltan} · como ${min} min`;
+  }
+  $('estadoSub').textContent = sub;
+  $('barra').style.width = total ? (100 * (listas + errores) / total) + '%' : '0';
+  $('btnZip').disabled = !listas;
+  $('btnCarpetaGuardar').disabled = !listas;
+  $('btnCarpetaGuardar').hidden = !window.showDirectoryPicker;
+  $('btnPausa').hidden = !faltan;
+}
+
+// ---------- Recortar ----------
+async function correr() {
+  if (corriendo) return;
+  corriendo = true;
+  try {
+    let it;
+    while (!pausado && (it = items.find(i => i.estado === 'espera'))) await recortar(it);
+  } finally {
+    corriendo = false;
+    subTexto = '';
+    actualizarEstado();
+  }
+}
+
+async function recortar(it) {
+  it.estado = 'procesando';
+  it.cancelada = false;
+  pintarVista(it);
+  actualizarEstado();
+  const o = opciones();
+  const t0 = performance.now();
+  try {
+    const conf = {
+      model: o.calidad,
+      output: { format: 'image/png', quality: 1 },
+      progress: (clave, actual, total) => {
+        if (clave.startsWith('fetch') && total) {
+          subTexto = actual < total ? `Descargando la IA (solo la primera vez)… ${Math.round(100 * actual / total)}%` : 'Preparando la IA…';
+          actualizarEstado();
+        }
+      },
+    };
+    const png = await removeBackground(it.file, conf);
+    subTexto = '';
+    if (it.cancelada) return;
+    const bmp = await createImageBitmap(png);
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close();
+    await guardarRecorte(it, c, o.limpiar, true);
+    tiempos.push((performance.now() - t0) / 1000);
+  } catch (err) {
+    console.error(it.file.name, err);
+    it.estado = 'error';
+    subTexto = '';
+  }
+  pintarVista(it);
+  actualizarEstado();
+}
+
+// Guarda el recorte (canvas con fondo transparente) y su vista previa en la foto.
+async function guardarRecorte(it, c, quitarManchas, endurecer) {
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  const datos = ctx.getImageData(0, 0, c.width, c.height);
+  const caja = limpiarMascara(datos, quitarManchas, endurecer);
+  if (!caja) throw new Error('No encontré ninguna prenda en la foto');
+  ctx.putImageData(datos, 0, 0);
+  const blob = c.convertToBlob ? await c.convertToBlob({ type: 'image/png' }) : await new Promise(ok => c.toBlob(ok, 'image/png'));
+  const k = Math.min(1, (PREV * 1.6) / Math.max(c.width, c.height));
+  const prev = await createImageBitmap(c, { resizeWidth: Math.round(c.width * k), resizeHeight: Math.round(c.height * k), resizeQuality: 'high' });
+  it.prev?.close?.();
+  it.recorte = blob; it.w = c.width; it.h = c.height; it.caja = caja; it.prev = prev;
+  it.cajaPrev = { ...caja, x: caja.x * k, y: caja.y * k, w: caja.w * k, h: caja.h * k };
+  it.estado = 'listo';
+}
+
+// Limpia la orilla, quita manchitas sueltas y regresa el rectángulo donde está la prenda.
+function limpiarMascara(img, quitarManchas, endurecer = true) {
+  const { width: w, height: h, data } = img;
+  const s = Math.min(1, 360 / Math.max(w, h));
+  const sw = Math.max(1, Math.ceil(w * s)), sh = Math.max(1, Math.ceil(h * s));
+  const celda = new Uint8Array(sw * sh);
+  for (let y = 0; y < h; y++) {
+    const cy = Math.floor(y * s) * sw;
+    for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3] > 128) celda[cy + Math.floor(x * s)] = 1;
+  }
+  // Agrupar las partes conectadas
+  const etiqueta = new Int32Array(sw * sh);
+  const areas = [0];
+  const pila = [];
+  for (let i = 0; i < celda.length; i++) {
+    if (!celda[i] || etiqueta[i]) continue;
+    const n = areas.length;
+    let area = 0;
+    etiqueta[i] = n; pila.push(i);
+    while (pila.length) {
+      const p = pila.pop(); area++;
+      const px = p % sw, py = (p / sw) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= sw || ny >= sh) continue;
+        const q = ny * sw + nx;
+        if (celda[q] && !etiqueta[q]) { etiqueta[q] = n; pila.push(q); }
+      }
+    }
+    areas.push(area);
+  }
+  const mayor = Math.max(0, ...areas);
+  if (!mayor) return null;
+  const queda = areas.map(a => !quitarManchas || a >= mayor * 0.03);
+  queda[0] = false;
+  // Rectángulo de lo que se queda
+  let x0 = sw, y0 = sh, x1 = -1, y1 = -1;
+  for (let i = 0; i < etiqueta.length; i++) {
+    if (!queda[etiqueta[i]]) continue;
+    const x = i % sw, y = (i / sw) | 0;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const pad = 1;
+  const bx0 = Math.max(0, Math.floor((x0 - pad) / s)), by0 = Math.max(0, Math.floor((y0 - pad) / s));
+  const bx1 = Math.min(w, Math.ceil((x1 + 1 + pad) / s)), by1 = Math.min(h, Math.ceil((y1 + 1 + pad) / s));
+  // Pasada final: orillas firmes, fuera lo que está lejos o en manchitas
+  let rx0 = w, ry0 = h, rx1 = -1, ry1 = -1;
+  for (let y = 0; y < h; y++) {
+    const cy = Math.floor(y * s) * sw;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4 + 3;
+      let a = data[i];
+      if (!a) continue;
+      const fuera = x < bx0 || x >= bx1 || y < by0 || y >= by1;
+      const lab = etiqueta[cy + Math.floor(x * s)];
+      if (fuera || (quitarManchas && lab && !queda[lab])) a = 0;
+      else if (endurecer) a = a < 20 ? 0 : a >= 200 ? 255 : Math.round((a - 20) * 255 / 180);
+      data[i] = a;
+      if (a > 40) { if (x < rx0) rx0 = x; if (x > rx1) rx1 = x; if (y < ry0) ry0 = y; if (y > ry1) ry1 = y; }
+    }
+  }
+  if (rx1 < 0) return null;
+  // Si la prenda toca la orilla de la foto (cortada), se pega a esa orilla en vez de flotar
+  const toca = { arriba: ry0 <= 2, abajo: ry1 >= h - 3, izq: rx0 <= 2, der: rx1 >= w - 3 };
+  return { x: rx0, y: ry0, w: rx1 - rx0 + 1, h: ry1 - ry0 + 1, toca };
+}
+
+// ---------- Armar la foto final ----------
+// img: recorte con fondo transparente (w × h), caja: dónde está la prenda.
+function componer(img, caja, w, h, o, lado) {
+  let W, H, sx, sy, sw, sh, dx, dy, dw, dh;
+  if (o.encuadre === 'original') {
+    const k = Math.min(1, o.tam / Math.max(w, h)) || 1;
+    W = Math.round(w * k); H = Math.round(h * k);
+    sx = 0; sy = 0; sw = w; sh = h; dx = 0; dy = 0; dw = W; dh = H;
+  } else {
+    W = o.tam; H = o.encuadre === '4:5' ? Math.round(o.tam * 1.25) : o.tam;
+    const libreW = W * (1 - 2 * o.margen), libreH = H * (1 - 2 * o.margen);
+    const k = Math.min(libreW / caja.w, libreH / caja.h);
+    sx = caja.x; sy = caja.y; sw = caja.w; sh = caja.h;
+    dw = caja.w * k; dh = caja.h * k; dx = (W - dw) / 2; dy = (H - dh) / 2;
+    const t = caja.toca;
+    if (t.abajo && !t.arriba) dy = H - dh; else if (t.arriba && !t.abajo) dy = 0;
+    if (t.der && !t.izq) dx = W - dw; else if (t.izq && !t.der) dx = 0;
+  }
+  // Vista previa: misma composición, más chiquita
+  const f = lado ? lado / Math.max(W, H) : 1;
+  const c = document.createElement('canvas');
+  c.width = Math.round(W * f); c.height = Math.round(H * f);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  if (o.fondo !== 'transparente') { ctx.fillStyle = o.fondo; ctx.fillRect(0, 0, c.width, c.height); }
+  if (o.sombra && o.fondo !== 'transparente') {
+    const oscuro = luminancia(o.fondo) < 0.35;
+    ctx.shadowColor = oscuro ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.22)';
+    ctx.shadowBlur = Math.max(W, H) * f * 0.025;
+    ctx.shadowOffsetY = Math.max(W, H) * f * 0.012;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, dx * f, dy * f, dw * f, dh * f);
+  return c;
+}
+function luminancia(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255;
+}
+
+async function archivoFinal(it, o) {
+  const bmp = await createImageBitmap(it.recorte);
+  const c = componer(bmp, it.caja, it.w, it.h, o, 0);
+  bmp.close();
+  const png = o.fondo === 'transparente';
+  const blob = await new Promise(ok => c.toBlob(ok, png ? 'image/png' : 'image/jpeg', 0.95));
+  const nombreFondo = { '#ffffff': 'blanco', '#000000': 'negro', transparente: 'sin-fondo' }[o.fondo] || 'color';
+  return { blob, nombre: `${it.nombre}-fondo-${nombreFondo}.${png ? 'png' : 'jpg'}` };
+}
+function descargar(blob, nombre) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function bajarUna(it) {
+  if (it.estado !== 'listo') return;
+  const { blob, nombre } = await archivoFinal(it, opciones());
+  descargar(blob, nombre);
+}
+function nombresUnicos(listas) {
+  const usados = new Map();
+  return n => {
+    const k = n.toLowerCase();
+    const veces = usados.get(k) || 0;
+    usados.set(k, veces + 1);
+    return veces ? n.replace(/(\.[^.]+)$/, `-${veces + 1}$1`) : n;
+  };
+}
+
+$('btnZip').onclick = async () => {
+  const listas = items.filter(i => i.estado === 'listo');
+  if (!listas.length) return;
+  const btn = $('btnZip'); btn.disabled = true;
+  const o = opciones();
+  const zip = new JSZip();
+  const unico = nombresUnicos();
+  try {
+    for (let i = 0; i < listas.length; i++) {
+      subTexto = `Armando el ZIP… ${i + 1} de ${listas.length}`; actualizarEstado();
+      const { blob, nombre } = await archivoFinal(listas[i], o);
+      zip.file(unico(nombre), blob);
+    }
+    subTexto = 'Comprimiendo…'; actualizarEstado();
+    const archivo = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    descargar(archivo, `fotos-recortadas-${new Date().toISOString().slice(0, 10)}.zip`);
+  } finally {
+    subTexto = ''; btn.disabled = false; actualizarEstado();
+  }
+};
+
+$('btnCarpetaGuardar').onclick = async () => {
+  const listas = items.filter(i => i.estado === 'listo');
+  if (!listas.length) return;
+  let carpeta;
+  try { carpeta = await showDirectoryPicker({ mode: 'readwrite' }); } catch { return; }
+  const o = opciones();
+  const unico = nombresUnicos();
+  const btn = $('btnCarpetaGuardar'); btn.disabled = true;
+  try {
+    for (let i = 0; i < listas.length; i++) {
+      subTexto = `Guardando… ${i + 1} de ${listas.length}`; actualizarEstado();
+      const { blob, nombre } = await archivoFinal(listas[i], o);
+      const fh = await carpeta.getFileHandle(unico(nombre), { create: true });
+      const out = await fh.createWritable();
+      await out.write(blob); await out.close();
+    }
+    subTexto = `✅ ${listas.length} fotos guardadas en la carpeta “${carpeta.name}”`;
+    actualizarEstado();
+    setTimeout(() => { subTexto = ''; actualizarEstado(); }, 6000);
+  } catch (err) {
+    console.error(err);
+    subTexto = 'No se pudo guardar en esa carpeta. Prueba con el ZIP.';
+    actualizarEstado();
+  } finally { btn.disabled = false; }
+};
+
+// ---------- Retocar a mano (borrar / restaurar) ----------
+const ed = { it: null, orig: null, mask: null, vOrig: null, vMask: null, k: 1, modo: 'borrar', pila: [], pintando: false, ult: null, cursor: null, fondoVista: 0 };
+const FONDOS_VISTA = [null, '#ffffff', '#000000'];
+async function abrirEditor(it) {
+  if (it.estado !== 'listo') return;
+  const [orig, rec] = await Promise.all([createImageBitmap(it.file), createImageBitmap(it.recorte)]);
+  if (orig.width !== rec.width || orig.height !== rec.height) { alert('No se pudo abrir esta foto para retocar.'); return; }
+  ed.it = it; ed.orig = orig; ed.pila = [];
+  ed.mask = new OffscreenCanvas(rec.width, rec.height);
+  ed.mask.getContext('2d').drawImage(rec, 0, 0);
+  rec.close();
+  // Copias del tamaño de la pantalla para que pinte rápido
+  ed.k = Math.min(1, 1400 / Math.max(orig.width, orig.height));
+  const vw = Math.round(orig.width * ed.k), vh = Math.round(orig.height * ed.k);
+  ed.vOrig = new OffscreenCanvas(vw, vh); ed.vOrig.getContext('2d').drawImage(orig, 0, 0, vw, vh);
+  ed.vMask = new OffscreenCanvas(vw, vh); ed.vMask.getContext('2d').drawImage(ed.mask, 0, 0, vw, vh);
+  ed.tmp = new OffscreenCanvas(vw, vh);
+  const lz = $('edLienzo'); lz.width = vw; lz.height = vh;
+  $('editor').hidden = false;
+  pintarEditor();
+}
+function pintarEditor() {
+  const lz = $('edLienzo'), ctx = lz.getContext('2d');
+  const t = ed.tmp.getContext('2d');
+  t.globalCompositeOperation = 'source-over';
+  t.clearRect(0, 0, ed.tmp.width, ed.tmp.height);
+  t.drawImage(ed.vOrig, 0, 0);
+  t.globalCompositeOperation = 'destination-in';
+  t.drawImage(ed.vMask, 0, 0);
+  ctx.clearRect(0, 0, lz.width, lz.height);
+  const fondo = FONDOS_VISTA[ed.fondoVista];
+  if (ed.modo === 'restaurar') { ctx.globalAlpha = 0.25; ctx.drawImage(ed.vOrig, 0, 0); ctx.globalAlpha = 1; }
+  else if (fondo) { ctx.fillStyle = fondo; ctx.fillRect(0, 0, lz.width, lz.height); }
+  ctx.drawImage(ed.tmp, 0, 0);
+  if (ed.cursor) {
+    const r = radioPincel();
+    ctx.beginPath(); ctx.arc(ed.cursor.x, ed.cursor.y, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#22d3ee'; ctx.stroke();
+  }
+}
+const radioPincel = () => +$('edPincel').value * $('edLienzo').width / 1400 / 2 * 1.4;
+function puntoLienzo(e) {
+  const lz = $('edLienzo'), r = lz.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * lz.width / r.width, y: (e.clientY - r.top) * lz.height / r.height };
+}
+function trazo(a, b) {
+  const r = radioPincel();
+  for (const [c, f] of [[ed.vMask, 1], [ed.mask, 1 / ed.k]]) {
+    const ctx = c.getContext('2d');
+    ctx.globalCompositeOperation = ed.modo === 'borrar' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = ctx.fillStyle = '#000';
+    ctx.lineCap = 'round'; ctx.lineWidth = r * 2 * f;
+    ctx.beginPath(); ctx.moveTo(a.x * f, a.y * f); ctx.lineTo(b.x * f, b.y * f); ctx.stroke();
+    ctx.beginPath(); ctx.arc(b.x * f, b.y * f, r * f, 0, Math.PI * 2); ctx.fill();
+  }
+}
+const lienzo = $('edLienzo');
+lienzo.addEventListener('pointerdown', async e => {
+  lienzo.setPointerCapture(e.pointerId);
+  ed.pintando = true;
+  if (ed.pila.length >= 15) ed.pila.shift().close();
+  ed.pila.push(await createImageBitmap(ed.mask));
+  ed.ult = puntoLienzo(e);
+  trazo(ed.ult, ed.ult);
+  pintarEditor();
+});
+lienzo.addEventListener('pointermove', e => {
+  const p = puntoLienzo(e);
+  ed.cursor = p;
+  if (ed.pintando && ed.ult) { trazo(ed.ult, p); ed.ult = p; }
+  pintarEditor();
+});
+['pointerup', 'pointercancel'].forEach(t => lienzo.addEventListener(t, () => { ed.pintando = false; ed.ult = null; }));
+lienzo.addEventListener('pointerleave', () => { ed.cursor = null; if (!ed.pintando) pintarEditor(); });
+function ponerModo(m) {
+  ed.modo = m;
+  $('edBorrar').classList.toggle('activo', m === 'borrar');
+  $('edRestaurar').classList.toggle('activo', m === 'restaurar');
+  pintarEditor();
+}
+$('edBorrar').onclick = () => ponerModo('borrar');
+$('edRestaurar').onclick = () => ponerModo('restaurar');
+$('edFondo').onclick = () => { ed.fondoVista = (ed.fondoVista + 1) % FONDOS_VISTA.length; pintarEditor(); };
+$('edPincel').oninput = () => pintarEditor();
+$('edDeshacer').onclick = () => {
+  const b = ed.pila.pop();
+  if (!b) return;
+  const m = ed.mask.getContext('2d');
+  m.globalCompositeOperation = 'copy'; m.drawImage(b, 0, 0); m.globalCompositeOperation = 'source-over';
+  const v = ed.vMask.getContext('2d');
+  v.globalCompositeOperation = 'copy'; v.drawImage(b, 0, 0, ed.vMask.width, ed.vMask.height); v.globalCompositeOperation = 'source-over';
+  b.close();
+  pintarEditor();
+};
+function cerrarEditor() {
+  $('editor').hidden = true;
+  ed.orig?.close(); ed.pila.forEach(b => b.close());
+  Object.assign(ed, { it: null, orig: null, mask: null, vOrig: null, vMask: null, tmp: null, pila: [] });
+}
+$('edCancelar').onclick = cerrarEditor;
+$('editor').addEventListener('click', e => { if (e.target.id === 'editor') cerrarEditor(); });
+document.addEventListener('keydown', e => {
+  if ($('editor').hidden) return;
+  if (e.key === 'Escape') cerrarEditor();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); $('edDeshacer').click(); }
+});
+$('edGuardar').onclick = async () => {
+  const it = ed.it; if (!it) return;
+  $('edGuardar').disabled = true;
+  try {
+    const c = new OffscreenCanvas(ed.mask.width, ed.mask.height);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(ed.orig, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(ed.mask, 0, 0);
+    await guardarRecorte(it, c, false, false);
+    pintarVista(it);
+    cerrarEditor();
+  } catch (err) {
+    console.error(err);
+    alert('Quedó vacía: no se puede guardar una foto sin prenda.');
+  } finally { $('edGuardar').disabled = false; }
+};
+
+window.addEventListener('beforeunload', e => {
+  if (items.some(i => i.estado === 'listo' || i.estado === 'procesando')) { e.preventDefault(); e.returnValue = ''; }
+});
+alCambiar();
+</script>
+</body>
+</html>
