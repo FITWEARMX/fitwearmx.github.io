@@ -323,8 +323,14 @@ function totals(inv){
   const envio=num(inv.envio), tot=sub+envio;
   const ants=(inv.anticipos||[]).filter(a=>num(a.monto)>0);
   const pagado=ants.reduce((a,x)=>a+num(x.monto),0);
-  return {sub,envio,tot,ants,pagado,rest:tot-pagado};
+  // sin anticipo anotado y con prendas sobre pedido: "Ordena con" y el resto (con envío) a liquidar
+  const sp=items.filter(i=>SOBRE_PEDIDO.test(i.desc||''));
+  const ordena=ants.length?0:sp.reduce((a,i)=>a+Math.ceil(num(i.precio)*.25/10)*10,0);
+  return {sub,envio,tot,ants,pagado,rest:tot-pagado,ordena,resto:tot-ordena,limite:ordena?fechaLimite(inv.fecha):''};
 }
+const SOBRE_PEDIDO=/sobre pedido|preventa|en camino|drop|early access/i;
+function fechaLimite(f){ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'')||/^(\d{4})-(\d{2})-(\d{2})/.exec(todayISO()); const d=new Date(+m[1],+m[2]-1,+m[3]+21);
+  return d.getDate()+' de '+['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][d.getMonth()]; }
 function nextPedido(last){
   const m=/^(.*?)(\d+)$/.exec((last&&last.pedido)||'');
   if(!m){
@@ -464,6 +470,7 @@ function refresh(){
   t.ants.forEach(a=>{h+='<dt class="ab">Anticipo'+(a.fecha?' ('+fechaCorta(a.fecha)+')':'')+'</dt><dd class="ab">−'+money(a.monto)+'</dd>';});
   const fin=finalLine(t);
   h+='<dt class="big">'+fin.label+'</dt><dd class="big">'+money(fin.val)+' MXN</dd>';
+  if(t.ordena) h+='<dt class="big">Ordena con</dt><dd class="big">'+money(t.ordena)+' MXN</dd><dt>Resto (antes del '+t.limite+' o al llegar)</dt><dd>'+money(t.resto)+' MXN</dd>';
   $('#sum').innerHTML=h;
   $('#dockLabel').textContent=fin.label; $('#dockRest').textContent=money(fin.val);
   updateChat(); schedulePreview();
@@ -603,7 +610,7 @@ async function drawInvoice(inv){
   const W=1100,M=60,ROW=190,items=inv.items||[];
   const imgs=await Promise.all(items.map(it=>{const s=fotoSrc(it.foto);return s?loadImg(s):null;}));
   const t=totals(inv), n=Math.max(items.length,1);
-  const Hest=440+ROW*n+60*t.ants.length+720;
+  const Hest=440+ROW*n+60*t.ants.length+720+(t.ordena?220:0);
   const S=Math.min(1.5,Math.sqrt(15e6/(W*Hest)));
   const tmp=document.createElement('canvas'); tmp.width=Math.ceil(W*S); tmp.height=Math.ceil(Hest*S);
   const d=tmp.getContext('2d'); d.scale(S,S);
@@ -669,6 +676,14 @@ async function drawInvoice(inv){
   d.font=font(30,true); const vw=d.measureText(val).width;
   T(d,label,Math.min(lx,rx-vw-20),y+22,font(24,true),K.white,'right');
   T(d,val,rx,y+18,font(30,true),fin.col==='blue'?K.blue:K.green,'right');
+  if(t.ordena){
+    y+=70; const bx=M+20,bw=W-2*M-40;
+    rr(d,bx,y,bw,170,14); d.fillStyle=K.panel; d.fill();
+    T(d,'Ordena con:',bx+30,y+42,font(24,true),K.white); T(d,money(t.ordena)+' MXN',bx+bw-30,y+42,font(30,true),K.green,'right');
+    T(d,'Resto a liquidar:',bx+30,y+92,font(20,true),K.white); T(d,money(t.resto)+' MXN',bx+bw-30,y+92,font(22,true),K.white,'right');
+    T(d,'Antes del '+t.limite+' o cuando llegue tu pedido. El anticipo no es reembolsable.',bx+30,y+135,font(15),K.grey);
+    y+=130;
+  }
 
   y+=100;
   rr(d,M+20,y,W-2*M-40,80,14); d.fillStyle=K.panel; d.fill(); d.fillStyle=K.white; d.fillRect(M+20,y+10,6,60);
@@ -716,6 +731,7 @@ function waText(){
   const t=totals(cur), fin=finalLine(t), nm=firstName();
   let s='Hola'+(nm?' '+nm:'')+', te comparto tu comprobante del pedido #'+(cur.pedido||'')+(cur.marca?' de '+cur.marca:'')+'. Total: '+money(t.tot)+' MXN.';
   if(t.ants.length) s+=' '+fin.label+': '+money(fin.val)+' MXN.';
+  else if(t.ordena) s+=' Ordena con '+money(t.ordena)+' MXN y el resto ('+money(t.resto)+' MXN) antes del '+t.limite+' o cuando llegue tu pedido.';
   return s;
 }
 function phone(){ const dg=(cur.telefono||'').replace(/\D/g,''); return dg.length===10?'52'+dg:dg; }
