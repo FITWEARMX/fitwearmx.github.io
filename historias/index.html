@@ -780,6 +780,7 @@ async function recibirProducto(d){
   toast(srcs.length&&ok<srcs.length?'Llegó el producto; algunas fotos no se pudieron traer, ponlas a mano':'Producto cargado ✓');
 }
 window.recibirProducto=recibirProducto;
+window.soportaOrdenaFijo=true; // la extensión revisa esto: si no está, la pestaña tiene la versión vieja
 /* Oferta: pone el precio de antes (tachado) y la etiqueta "OFERTA -50% · SOLO XS".
    Si el producto no es oferta y la etiqueta la había puesto una oferta, regresa la que tenías. */
 let etqAntes=null, etqOferta='';
