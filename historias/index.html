@@ -501,11 +501,14 @@ function opciones(){
     marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100,modoFoto:st.modoFoto||'llenar'};
 }
 // Anticipo para ordenar: 25% del precio en pesos, redondeado hacia arriba a decenas (igual que la tienda)
-function ordenaTxt(){ const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
+// Early Access de tu tienda (lo manda la extensión): sin precio, con el texto fijo "Ordena con $500 · liquida o abona hasta…"
+let ordenaFijo='';
+function ordenaTxt(){ if(ordenaFijo){ $('#tOrdenaTxt').textContent='Poner “'+ordenaFijo+'”'; return $('#tOrdena').checked?ordenaFijo:''; }
+  const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
   if(a) $('#tOrdenaTxt').textContent='Poner “Ordena con $'+a+' MXN · tienes 3 semanas para liquidar”';
   return $('#tOrdena').checked&&a?'Ordena con $'+a+' MXN · tienes 3 semanas para liquidar':''; }
-function antesTxt(){ const a=num($('#tAntes').value), v=num($('#tMxn').value); return a>v&&v?'$'+Math.round(a):''; }
-function precioTxt(){ const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
+function antesTxt(){ if(ordenaFijo) return ''; const a=num($('#tAntes').value), v=num($('#tMxn').value); return a>v&&v?'$'+Math.round(a):''; }
+function precioTxt(){ if(ordenaFijo) return ''; const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
 let raf=0;
 function previa(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>Historia.dibujar($('#pv'),opciones())); }
 function calcular(){
@@ -590,7 +593,7 @@ $('#btnAgregar').addEventListener('click',async()=>{
   pintarCola(); toast('Agregada · '+cola.length+(cola.length===1?' historia lista':' historias listas'));
   window.scrollTo({top:0,behavior:'smooth'});
 });
-$('#btnNueva').addEventListener('click',()=>{
+$('#btnNueva').addEventListener('click',()=>{ ordenaFijo='';
   fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; mxnManual=false;
   ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); origen=null; notaCat();
   pintarSlots(); calcular(); previa(); toast('Lista para el siguiente producto');
@@ -762,7 +765,7 @@ async function recibirProducto(d){
   if(d.precioUsd){ $('#tUsd').value=num(d.precioUsd); mxnManual=false; }
   if(d.url) $('#tLink').value=d.url;
   if(d.descripcion!=null) $('#tDesc').value=d.descripcion;
-  $('#tOrdena').checked=true;
+  $('#tOrdena').checked=true; ordenaFijo=d.ordenaFijo?String(d.ordenaFijo):'';
   origen=null; notaCat();
   calcular();
   ponerOferta(d.precioAntesUsd?pesos(d.precioAntesUsd):0,d.etiqueta||'');
