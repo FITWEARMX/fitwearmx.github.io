@@ -382,7 +382,7 @@ label>input,label>textarea,label>select{margin-top:6px}
     <h2 style="font-size:20px;margin-top:14px">Respaldo</h2>
     <p id="bkLast"></p>
     <button type="button" class="btn ghost full" id="bkExport">Guardar respaldo</button>
-    <label class="btn ghost full" style="margin:0 0 10px">Cargar un respaldo<input type="file" class="sr" id="bkImport" accept=".json,application/json"></label>
+    <label class="btn ghost full" style="margin:0 0 10px">Cargar un respaldo<input type="file" class="sr" id="bkImport" accept=".json,application/json" multiple></label>
     <button type="button" class="btn ghost full" id="ajClose">Cerrar</button>
   </div>
 </div>
@@ -1504,31 +1504,63 @@ $('#btnPublicar').addEventListener('click',async()=>{
 /* ---------- respaldo ---------- */
 const blobToData=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b);});
 async function dataToBlob(d){ return (await fetch(d)).blob(); }
+// Con muchas fotos un solo archivo no cabe: el respaldo sale en partes (hasta 50 productos o ~60 MB de fotos cada una)
 $('#bkExport').addEventListener('click',async()=>{
   const b=$('#bkExport'); b.disabled=true; b.textContent='Preparando…';
   try{
-    const fotos=await getAll('fotos');
-    const out={app:'catalogo',version:1,exportado:new Date().toISOString(),ajustes:AJ,noticias:ntLeer(),productos:await getAll('productos'),
-      fotos:await Promise.all(fotos.map(async f=>({id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,data:await blobToData(f.blob)})))};
-    const d=new Date(), name='Respaldo-Catalogo-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
-    if(await compartirArchivo(new File([JSON.stringify(out)],name,{type:'application/json'}))){
+    const prods=await getAll('productos'), fotos=await getAll('fotos');
+    const porProd={}; fotos.forEach(f=>{ (porProd[f.productoId]=porProd[f.productoId]||[]).push(f); });
+    const partes=[]; let act=null;
+    for(const p of prods){
+      const fs=porProd[p.id]||[], peso=fs.reduce((a,f)=>a+((f.blob&&f.blob.size)||0),0);
+      if(!act||act.ps.length>=50||(act.peso+peso>45e6&&act.ps.length)) partes.push(act={ps:[],fs:[],peso:0});
+      act.ps.push(p); act.fs.push(...fs); act.peso+=peso;
+    }
+    // las fotos que no son de ningún producto (por ejemplo las de Noticias) van en la primera parte
+    const ids=new Set(prods.map(p=>p.id)); if(!partes.length) partes.push({ps:[],fs:[],peso:0});
+    partes[0].fs.push(...fotos.filter(f=>!ids.has(f.productoId)));
+    const d=new Date(), fecha=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    const movil=/iPhone|iPad|Android/i.test(navigator.userAgent), archivos=[];
+    for(let i=0;i<partes.length;i++){
+      b.textContent='Preparando parte '+(i+1)+' de '+partes.length+'…';
+      const x=partes[i];
+      const out={app:'catalogo',version:1,exportado:d.toISOString(),parte:i+1,partes:partes.length,ajustes:i?undefined:AJ,noticias:i?undefined:ntLeer(),productos:x.ps,
+        fotos:await Promise.all(x.fs.map(async f=>({id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,data:await blobToData(f.blob)})))};
+      const name='Respaldo-Catalogo-'+fecha+(partes.length>1?'-parte-'+(i+1)+'-de-'+partes.length:'')+'.json';
+      const file=new File([JSON.stringify(out)],name,{type:'application/json'});
+      if(movil){ archivos.push(file); continue; }
+      // en la compu se descarga cada parte en cuanto está lista (Chrome puede preguntar una vez si permites varias descargas)
+      const u=URL.createObjectURL(file),a=document.createElement('a'); a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),60000); await new Promise(r=>setTimeout(r,900));
+    }
+    let ok=true;
+    if(movil){ try{ if(navigator.canShare&&navigator.canShare({files:archivos})) await navigator.share({files:archivos}); else for(const f of archivos) ok=await compartirArchivo(f)&&ok; }
+      catch(e){ ok=!(e&&e.name==='AbortError'); } }
+    if(ok){
       try{ localStorage.setItem(CFG.db+'_ultimoRespaldo',String(Date.now())); }catch(e){}
-      updateBackupWarn(); toast('Respaldo listo: '+(out.productos.length===1?'1 producto':out.productos.length+' productos'));
+      updateBackupWarn(); toast('Respaldo listo: '+(prods.length===1?'1 producto':prods.length+' productos')+(partes.length>1?' en '+partes.length+' archivos':''));
     }
   }catch(e){ toast('No se pudo crear el respaldo'); }
   b.disabled=false; b.textContent='Guardar respaldo';
 });
+// se pueden escoger todas las partes del respaldo juntas
 $('#bkImport').addEventListener('change',async e=>{
-  const file=e.target.files&&e.target.files[0]; e.target.value=''; if(!file) return;
-  let data; try{ data=JSON.parse(await file.text()); }catch(err){ toast('Ese archivo no es un respaldo válido'); return; }
-  if(!data||data.app!=='catalogo'||!Array.isArray(data.productos)){ toast('Ese archivo no es un respaldo del Catálogo'); return; }
-  try{
-    for(const p of data.productos) if(p&&p.id) await put('productos',p);
-    for(const f of (data.fotos||[])) if(f&&f.id&&f.data) await put('fotos',{id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,blob:await dataToBlob(f.data)});
-  }catch(err){ toast('No se pudo cargar todo el respaldo'); }
-  if(Array.isArray(data.noticias)&&data.noticias.length){ const a=ntLeer(); data.noticias.forEach(n=>{ if(n&&n.id&&!a.some(x=>x.id===n.id)) a.push(n); }); ntGuardarTodas(a); }
+  const files=[...(e.target.files||[])]; e.target.value=''; if(!files.length) return;
+  let n=0, malos=0;
+  for(const file of files){
+    let data; try{ data=JSON.parse(await file.text()); }catch(err){ malos++; continue; }
+    if(!data||data.app!=='catalogo'||!Array.isArray(data.productos)){ malos++; continue; }
+    if(files.length>1) toast('Cargando '+file.name+'…');
+    try{
+      for(const p of data.productos) if(p&&p.id) await put('productos',p);
+      for(const f of (data.fotos||[])) if(f&&f.id&&f.data) await put('fotos',{id:f.id,productoId:f.productoId,colorK:f.colorK,fecha:f.fecha,blob:await dataToBlob(f.data)});
+    }catch(err){ toast('No se pudo cargar todo '+file.name); }
+    if(Array.isArray(data.noticias)&&data.noticias.length){ const a=ntLeer(); data.noticias.forEach(n=>{ if(n&&n.id&&!a.some(x=>x.id===n.id)) a.push(n); }); ntGuardarTodas(a); }
+    n+=data.productos.length;
+  }
   productos=await getAll('productos'); await refreshList();
-  $('#aj').hidden=true; toast(data.productos.length===1?'Se cargó 1 producto':'Se cargaron '+data.productos.length+' productos');
+  $('#aj').hidden=true;
+  toast(malos&&!n?'Ese archivo no es un respaldo del Catálogo':(n===1?'Se cargó 1 producto':'Se cargaron '+n+' productos')+(malos?' ('+malos+' archivo(s) no eran respaldo)':''));
 });
 
 document.addEventListener('keydown',e=>{
