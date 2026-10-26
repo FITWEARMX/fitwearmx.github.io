@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Recortador de Fondos</title>
+<title>Editor FITWEARMX</title>
 <link rel="icon" href="../icon-180.png">
 <meta name="theme-color" content="#0d1117">
 <style>
@@ -101,14 +101,204 @@
   .editor canvas { max-width: 100%; max-height: 66vh; touch-action: none; cursor: none; display: block; }
   .editor .fin { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   button.activo { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+  /* Pestañas */
+  .pestanas { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .pestanas button { padding: 10px 18px; border-radius: 999px; font-weight: 600; }
+  .pestanas button[aria-selected=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+  /* Editor de video */
+  .v-tit { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .v-tit h2, .v-ctrl h3 { margin: 0; font-size: 1.05rem; }
+  .v-ctrl h3 { margin-bottom: 10px; }
+  .v-ctrl h4 { margin: 14px 0 6px; font-size: .78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 6px; }
+  .pill { font-size: .75rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 99px; margin-left: 6px; }
+  .tam { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--text-muted); }
+  .tam input { width: 110px; }
+  button.mini { padding: 3px 9px; font-size: .75rem; text-transform: none; letter-spacing: 0; }
+  .tomas { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 12px; }
+  .toma { position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 2px solid var(--border); cursor: pointer; background: #000; aspect-ratio: 9/16; user-select: none; }
+  .toma img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .15s; }
+  .toma:not(.sel) img { opacity: .62; }
+  .toma.sel { border-color: var(--accent); }
+  .toma .num { position: absolute; top: 5px; left: 5px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; background: var(--accent); color: #06202a; font-weight: 800; font-size: .85rem; display: none; align-items: center; justify-content: center; }
+  .toma.sel .num { display: flex; }
+  .toma .dur { position: absolute; bottom: 5px; left: 5px; font-size: .7rem; background: rgba(0,0,0,.72); color: #fff; padding: 2px 6px; border-radius: 99px; }
+  .toma .cols { position: absolute; bottom: 6px; right: 5px; display: flex; gap: 3px; }
+  .toma .cols i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.7); }
+  .toma .tbtn { position: absolute; top: 4px; right: 4px; display: flex; flex-direction: column; gap: 4px; }
+  .toma .tbtn button { padding: 2px 6px; font-size: .75rem; background: rgba(0,0,0,.7); border-color: rgba(255,255,255,.25); }
+  .v-grid { display: grid; grid-template-columns: minmax(260px, 400px) 1fr; gap: 16px; align-items: start; }
+  .v-vista { position: sticky; top: 12px; }
+  .v-pantalla { background: #000; border-radius: var(--radius-sm); overflow: hidden; display: flex; justify-content: center; }
+  .v-pantalla canvas { width: 100%; height: auto; max-height: 68vh; object-fit: contain; display: block; }
+  .v-play { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .v-export { width: 100%; margin-top: 10px; padding: 12px; font-size: 1rem; }
+  #vDescarga a { display: block; text-align: center; margin-top: 10px; padding: 12px; border-radius: var(--radius-sm); background: var(--accent-2); color: #052e1c; font-weight: 700; text-decoration: none; }
+  .orden { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; }
+  .orden:empty::before { content: 'Toca las tomas de arriba para armar tu video.'; color: var(--text-muted); font-size: .85rem; }
+  .o-item { width: 74px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card-2); }
+  .o-item.arrastrando { opacity: .4; }
+  .o-item .o-img { position: relative; aspect-ratio: 9/16; background: #000; }
+  .o-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .o-item b { position: absolute; top: 3px; left: 3px; background: var(--accent); color: #06202a; border-radius: 99px; font-size: .72rem; padding: 1px 6px; }
+  .o-item .lenta { position: absolute; bottom: 3px; left: 3px; right: 3px; font-size: .62rem; background: rgba(0,0,0,.75); color: #fbbf24; text-align: center; border-radius: 6px; }
+  .o-item .o-btn { display: flex; }
+  .o-item .o-btn button { flex: 1; padding: 3px 0; border: none; border-radius: 0; font-size: .75rem; background: none; }
+  .o-item .o-btn button:hover { color: var(--accent); }
+  #vOnda { width: 100%; height: 80px; display: block; margin-top: 10px; border-radius: 8px; background: var(--bg-card-2); cursor: crosshair; }
+  .fila { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .fila button { padding: 4px 10px; }
+  .sliders { display: grid; gap: 6px; }
+  .sliders label { display: grid; grid-template-columns: 120px 1fr 44px; align-items: center; gap: 8px; font-size: .88rem; }
+  .sliders b { font-size: .78rem; color: var(--text-muted); text-align: right; font-weight: 500; }
+  @media (max-width: 760px) {
+    .v-grid { grid-template-columns: 1fr; }
+    .v-vista { position: static; }
+    .sliders label { grid-template-columns: 96px 1fr 40px; }
+  }
 </style>
 </head>
 <body>
 <div class="page">
   <header>
-    <h1>✂️ Recortador de Fondos</h1>
-    <p>Arrastra tus fotos, la IA recorta la prenda y le pone el fondo que elijas. Todo en tu compu, sin subir nada.</p>
+    <h1>🎬 Editor FITWEARMX</h1>
+    <p>Videos para Reels al ritmo de la música y fotos sin fondo. Todo en tu compu, sin subir nada.</p>
   </header>
+
+  <nav class="pestanas" role="tablist">
+    <button type="button" role="tab" data-modo="video">🎬 Video</button>
+    <button type="button" role="tab" data-modo="fotos">🖼 Fotos sin fondo</button>
+  </nav>
+
+  <div id="modoVideo" hidden>
+    <div class="zona" id="vZona" tabindex="0" role="button" aria-label="Agregar videos">
+      <div class="grande">🎬 Arrastra aquí tus videos</div>
+      <div class="hint">MP4 o MOV · puedes meter varios (el de la marca y los tuyos) · detecta solo cada cambio de toma</div>
+      <div class="botones">
+        <button type="button" id="vBtnVideos" class="primario">Elegir videos</button>
+      </div>
+      <input type="file" id="vIn" accept="video/*,.mp4,.mov,.m4v" multiple hidden>
+    </div>
+
+    <section class="card" id="vAnalisisCard" hidden>
+      <div class="estado-texto" id="vAnalisis">—</div>
+      <div class="progreso"><div id="vBarra"></div></div>
+    </section>
+
+    <section class="card" id="vTomasCard" hidden>
+      <div class="v-tit">
+        <h2>1 · Tomas <span class="pill" id="vNTomas"></span></h2>
+        <div class="acciones">
+          <label class="tam">Cortes <input type="range" id="vSens" min="1" max="10" value="5" title="Más alto = corta más"></label>
+          <button type="button" id="vTodas">Agregar todas</button>
+          <button type="button" id="vNinguna">Quitar todas</button>
+        </div>
+      </div>
+      <div class="hint">Toca las tomas en el orden que las quieres: la primera que toques es la <b>1</b>, luego la <b>2</b>… Tócala otra vez para quitarla. <b>▶</b> la ve sola · <b>⤵</b> la une con la siguiente si cortó de más.</div>
+      <div class="tomas" id="vTomas"></div>
+    </section>
+
+    <div class="v-grid" id="vEdicion" hidden>
+      <section class="card v-vista">
+        <div class="v-pantalla"><canvas id="vLienzo" width="720" height="1280"></canvas></div>
+        <div class="v-play">
+          <button type="button" id="vPlay" class="primario">▶ Ver</button>
+          <button type="button" id="vStop">⏹</button>
+          <span id="vTiempo" class="hint">0.0 / 0.0 s</span>
+        </div>
+        <button type="button" id="vExportar" class="primario v-export">⬇️ Exportar video</button>
+        <div class="progreso" id="vExpProg" hidden><div id="vExpBarra"></div></div>
+        <div class="hint" id="vExpTxt"></div>
+        <div id="vDescarga"></div>
+      </section>
+
+      <div class="v-ctrl">
+        <section class="card">
+          <h3>2 · Tu orden <span class="pill" id="vTotal"></span></h3>
+          <div class="orden" id="vOrden"></div>
+        </section>
+
+        <section class="card">
+          <h3>3 · Música</h3>
+          <div class="acciones">
+            <button type="button" id="vBtnMusica">🎵 Elegir canción</button>
+            <button type="button" id="vQuitarMusica" hidden>✕ Quitar</button>
+            <input type="file" id="vMusicaIn" accept="audio/*,.mp3,.m4a,.wav,.aac" hidden>
+          </div>
+          <div class="hint" id="vMusicaTxt">Sin canción: usa el sonido del video.</div>
+          <div id="vMusicaBox" hidden>
+            <canvas id="vOnda" height="80"></canvas>
+            <div class="hint">Toca la onda para elegir dónde empieza la canción (se acomoda solo al golpe más cercano).</div>
+            <div class="fila">
+              <span>Ritmo: <b id="vBpm">—</b> BPM</span>
+              <button type="button" id="vBpmMitad" title="Si los cortes van muy rápido">½</button>
+              <button type="button" id="vBpmDoble" title="Si los cortes van muy lento">×2</button>
+            </div>
+            <h4>Cambiar de toma cada</h4>
+            <div class="chips">
+              <label class="chip"><input type="radio" name="vRitmo" value="1"><span>1 golpe</span></label>
+              <label class="chip"><input type="radio" name="vRitmo" value="2" checked><span>2 golpes</span></label>
+              <label class="chip"><input type="radio" name="vRitmo" value="4"><span>4 golpes</span></label>
+              <label class="chip"><input type="radio" name="vRitmo" value="8"><span>8 golpes</span></label>
+            </div>
+          </div>
+          <div id="vSinRitmoBox">
+            <h4>Duración de cada toma</h4>
+            <input type="range" id="vMaxToma" min="0" max="8" step="0.5" value="0">
+            <div class="hint" id="vMaxTxt">Completa (como viene)</div>
+          </div>
+          <h4>Sonido</h4>
+          <div class="sliders">
+            <label>Canción <input type="range" id="vVolMusica" min="0" max="150" value="100"><b></b></label>
+            <label>Sonido del video <input type="range" id="vVolVideo" min="0" max="150" value="100"><b></b></label>
+            <label>Bajos <input type="range" id="vBajos" min="-12" max="12" value="0"><b></b></label>
+            <label>Medios <input type="range" id="vMedios" min="-12" max="12" value="0"><b></b></label>
+            <label>Agudos <input type="range" id="vAgudos" min="-12" max="12" value="0"><b></b></label>
+          </div>
+          <label class="check"><input type="checkbox" id="vFade" checked>Bajar la música suave al final</label>
+        </section>
+
+        <section class="card">
+          <h3>4 · Imagen</h3>
+          <h4>Formato</h4>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="vFormato" value="9:16" checked><span>Reel 9:16</span></label>
+            <label class="chip"><input type="radio" name="vFormato" value="4:5"><span>Post 4:5</span></label>
+            <label class="chip"><input type="radio" name="vFormato" value="1:1"><span>Cuadrado</span></label>
+          </div>
+          <h4>Encuadre</h4>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="vEncuadre" value="0" checked><span>Llenar pantalla</span></label>
+            <label class="chip"><input type="radio" name="vEncuadre" value="1"><span>Completo + fondo difuminado</span></label>
+          </div>
+          <h4>Mejorar <button type="button" id="vAuto" class="mini">✨ Auto</button> <button type="button" id="vReset" class="mini">Original</button></h4>
+          <div class="sliders">
+            <label>Nitidez <input type="range" id="vNitidez" min="0" max="150" value="35"><b></b></label>
+            <label>Contraste <input type="range" id="vContraste" min="-30" max="40" value="5"><b></b></label>
+            <label>Color <input type="range" id="vColor" min="-50" max="60" value="8"><b></b></label>
+            <label>Brillo <input type="range" id="vBrillo" min="-20" max="20" value="0"><b></b></label>
+          </div>
+          <h4>Efectos en cada cambio</h4>
+          <label class="check"><input type="checkbox" id="vZoom" checked>Golpe de zoom</label>
+          <label class="check"><input type="checkbox" id="vFlash">Flash blanco</label>
+          <h4>Calidad al exportar</h4>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="vRes" value="1080" checked><span>1080p (Instagram)</span></label>
+            <label class="chip"><input type="radio" name="vRes" value="1440"><span>1440p</span></label>
+            <label class="chip"><input type="radio" name="vRes" value="2160"><span>4K</span></label>
+          </div>
+          <div class="chips" style="margin-top:6px">
+            <label class="chip"><input type="radio" name="vFps" value="30" checked><span>30 fps</span></label>
+            <label class="chip"><input type="radio" name="vFps" value="60"><span>60 fps</span></label>
+          </div>
+          <div class="hint">Instagram muestra los Reels en 1080p: 1080p con nitidez es lo que mejor se ve. 4K agranda y afila, pero no inventa detalle que el video no trae.</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="modoFotos" hidden>
 
   <section class="card">
     <div class="opciones">
@@ -184,6 +374,7 @@
   </section>
 
   <div class="rejilla" id="rejilla"></div>
+  </div>
 </div>
 
 
@@ -774,6 +965,690 @@ window.addEventListener('beforeunload', e => {
   if (items.some(i => i.estado === 'listo' || i.estado === 'procesando')) { e.preventDefault(); e.returnValue = ''; }
 });
 alCambiar();
+</script>
+<script>
+/* Editor de video: corta cada toma sola, tú eliges el orden, se sincroniza con la música
+   y se exporta para Reels. Todo pasa en tu compu: los videos no se suben a ningún lado. */
+(() => {
+const $ = id => document.getElementById(id);
+const V = { videos: [], tomas: [], orden: [], musica: null, bpm: 0, b0: 0, inicio: 0, sigId: 1 };
+window.editorVideo = V;
+
+// ---------- Pestañas ----------
+function modo(m) {
+  document.querySelectorAll('.pestanas button').forEach(b => b.setAttribute('aria-selected', b.dataset.modo === m));
+  $('modoVideo').hidden = m !== 'video';
+  $('modoFotos').hidden = m !== 'fotos';
+  try { localStorage.setItem('editor_modo', m); } catch (e) {}
+}
+document.querySelectorAll('.pestanas button').forEach(b => b.onclick = () => modo(b.dataset.modo));
+let m0 = 'video';
+try { m0 = localStorage.getItem('editor_modo') || 'video'; } catch (e) {}
+modo(m0);
+
+// ---------- Utilidades ----------
+function esperar(el, ev) {
+  return new Promise((res, rej) => {
+    const ok = () => { fin(); res(); };
+    const ko = () => { fin(); rej(new Error('No se pudo leer el video')); };
+    const fin = () => { el.removeEventListener(ev, ok); el.removeEventListener('error', ko); };
+    el.addEventListener(ev, ok); el.addEventListener('error', ko);
+  });
+}
+async function irA(el, t) {
+  t = Math.max(0, Math.min(t, (el.duration || t) - 0.001));
+  if (Math.abs(el.currentTime - t) < 0.0005 && el.readyState >= 2) return;
+  const p = esperar(el, 'seeked');
+  el.currentTime = t;
+  await p;
+}
+const hex = (r, g, b) => '#' + [r, g, b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+const seg = x => x.toFixed(1) + ' s';
+
+// ---------- Firmas de cuadro (para encontrar los cortes) ----------
+// Rejilla de 12x12 con la raíz de la luz: así los cortes se notan aunque el fondo sea casi negro.
+const FS = 48, G = 12;
+const fc = document.createElement('canvas'); fc.width = fc.height = FS;
+const fx = fc.getContext('2d', { willReadFrequently: true });
+function firma(el) {
+  fx.drawImage(el, 0, 0, FS, FS);
+  const d = fx.getImageData(0, 0, FS, FS).data, g = new Float32Array(G * G), k = FS / G;
+  for (let y = 0; y < FS; y++) for (let x = 0; x < FS; x++) {
+    const i = (y * FS + x) * 4;
+    g[Math.floor(y / k) * G + Math.floor(x / k)] += Math.sqrt((0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255) / (k * k);
+  }
+  return g;
+}
+function dist(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return s / a.length;
+}
+function colores(el) {
+  fx.drawImage(el, 0, 0, FS, FS);
+  const d = fx.getImageData(0, 0, FS, FS).data, cub = new Map();
+  for (let i = 0; i < d.length; i += 4) {
+    if (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] < 30) continue;
+    const k = (d[i] >> 5) * 64 + (d[i + 1] >> 5) * 8 + (d[i + 2] >> 5);
+    const c = cub.get(k) || [0, 0, 0, 0];
+    c[0] += d[i]; c[1] += d[i + 1]; c[2] += d[i + 2]; c[3]++;
+    cub.set(k, c);
+  }
+  const tot = [...cub.values()].reduce((s, c) => s + c[3], 0);
+  if (tot < FS * FS * 0.02) return ['#000000'];
+  return [...cub.values()].sort((a, b) => b[3] - a[3]).filter(c => c[3] > tot * 0.12).slice(0, 2)
+    .map(c => hex(c[0] / c[3], c[1] / c[3], c[2] / c[3]));
+}
+const mc = document.createElement('canvas'); mc.width = 108; mc.height = 192;
+const mx = mc.getContext('2d');
+function miniatura(el) {
+  const sa = el.videoWidth / el.videoHeight, da = mc.width / mc.height;
+  let sw = el.videoWidth, sh = el.videoHeight, sx = 0, sy = 0;
+  if (sa > da) { sw = sh * da; sx = (el.videoWidth - sw) / 2; } else { sh = sw / da; sy = (el.videoHeight - sh) / 2; }
+  mx.drawImage(el, sx, sy, sw, sh, 0, 0, mc.width, mc.height);
+  return mc.toDataURL('image/jpeg', 0.75);
+}
+
+// ---------- Cargar y analizar videos ----------
+$('vBtnVideos').onclick = e => { e.stopPropagation(); $('vIn').click(); };
+$('vZona').onclick = () => $('vIn').click();
+$('vZona').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('vIn').click(); } };
+$('vIn').onchange = () => { agregarVideos([...$('vIn').files]); $('vIn').value = ''; };
+['dragenter', 'dragover'].forEach(t => $('vZona').addEventListener(t, e => { e.preventDefault(); $('vZona').classList.add('encima'); }));
+['dragleave', 'drop'].forEach(t => $('vZona').addEventListener(t, e => { e.preventDefault(); $('vZona').classList.remove('encima'); }));
+$('vZona').addEventListener('drop', e => agregarVideos([...e.dataTransfer.files]));
+
+let analizando = Promise.resolve();
+function agregarVideos(files) {
+  files = files.filter(f => f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm)$/i.test(f.name));
+  if (!files.length) return;
+  analizando = analizando.then(async () => {
+    for (const f of files) {
+      try { await analizar(f); }
+      catch (err) { console.error(err); alert('No pude abrir "' + f.name + '". Prueba con un MP4.'); }
+    }
+  });
+}
+
+function estado(txt, frac) {
+  $('vAnalisisCard').hidden = !txt;
+  $('vAnalisis').textContent = txt || '';
+  $('vBarra').style.width = Math.round((frac || 0) * 100) + '%';
+}
+
+async function analizar(file) {
+  const el = document.createElement('video');
+  el.muted = true; el.playsInline = true; el.preload = 'auto';
+  const url = URL.createObjectURL(file);
+  el.src = url;
+  await esperar(el, 'loadeddata');
+  const vid = { id: V.sigId++, nombre: file.name, url, el, dur: el.duration, w: el.videoWidth, h: el.videoHeight, muestras: [] };
+  estado('Buscando los cortes de "' + file.name + '"…', 0);
+  if ('requestVideoFrameCallback' in el) {
+    // Lo reproduce rápido y en silencio, guardando una huella de cada cuadro.
+    el.playbackRate = vid.dur > 60 ? 4 : 3;
+    await new Promise((res, rej) => {
+      const cb = (ahora, md) => {
+        vid.muestras.push({ t: md.mediaTime, f: firma(el) });
+        estado('Buscando los cortes de "' + file.name + '"…', md.mediaTime / vid.dur * 0.8);
+        if (!el.ended) el.requestVideoFrameCallback(cb);
+      };
+      el.requestVideoFrameCallback(cb);
+      el.onended = res;
+      el.play().catch(rej);
+    });
+    el.onended = null;
+    el.playbackRate = 1;
+  } else {
+    for (let t = 0; t < vid.dur - 0.05; t += 0.1) {
+      await irA(el, t);
+      vid.muestras.push({ t, f: firma(el) });
+      if (vid.muestras.length % 5 === 0) estado('Buscando los cortes de "' + file.name + '"…', t / vid.dur * 0.8);
+    }
+  }
+  V.videos.push(vid);
+  await cortarVideo(vid);
+  estado('');
+  pintarTomas();
+}
+
+// Encuentra los cambios de toma con la sensibilidad elegida y afina cada corte a ~1/80 s.
+async function cortarVideo(vid) {
+  const sens = +$('vSens').value, M = vid.muestras;
+  const d = M.map((m, i) => i ? dist(M[i - 1].f, m.f) : 0);
+  const orden = d.slice(1).sort((a, b) => a - b), med = orden[orden.length >> 1] || 0;
+  const umbral = Math.max(0.025, med * (11 - sens));
+  const cortes = [];
+  for (let i = 1; i < M.length; i++) {
+    if (d[i] <= umbral) continue;
+    if (cortes.length && M[i].t - cortes[cortes.length - 1].t < 0.3) continue;
+    cortes.push({ i, t: M[i].t });
+  }
+  const el = vid.el;
+  for (let k = 0; k < cortes.length; k++) {
+    const i = cortes[k].i;
+    let lo = M[i - 1].t, hi = M[i].t;
+    for (let it = 0; it < 3; it++) {
+      const mid = (lo + hi) / 2;
+      await irA(el, mid);
+      const fm = firma(el);
+      if (dist(fm, M[i - 1].f) <= dist(fm, M[i].f)) lo = mid; else hi = mid;
+    }
+    cortes[k].t = hi;
+    estado('Afinando cortes de "' + vid.nombre + '"…', 0.8 + 0.1 * (k + 1) / cortes.length);
+  }
+  const lim = [0, ...cortes.map(c => c.t), vid.dur];
+  V.tomas = V.tomas.filter(t => t.vid !== vid);
+  const nuevas = [];
+  for (let k = 0; k < lim.length - 1; k++) {
+    const start = lim[k] + (k ? 0.04 : 0), end = lim[k + 1] - (k < lim.length - 2 ? 0.04 : 0);
+    if (end - start < 0.25) continue;
+    nuevas.push(await crearToma(vid, start, end));
+    estado('Preparando las tomas…', 0.9 + 0.1 * (k + 1) / (lim.length - 1));
+  }
+  V.tomas.push(...nuevas);
+  V.orden = V.orden.filter(t => V.tomas.includes(t));
+}
+
+async function crearToma(vid, start, end) {
+  await irA(vid.el, start + (end - start) * 0.4);
+  return { id: V.sigId++, vid, start, end, dur: end - start, img: miniatura(vid.el), cols: colores(vid.el) };
+}
+
+let sensT;
+$('vSens').oninput = () => {
+  clearTimeout(sensT);
+  sensT = setTimeout(() => {
+    analizando = analizando.then(async () => {
+      for (const vid of V.videos) await cortarVideo(vid);
+      estado('');
+      pintarTomas();
+    });
+  }, 350);
+};
+
+// ---------- Tomas y orden ----------
+function pintarTomas() {
+  const cont = $('vTomas');
+  cont.innerHTML = '';
+  V.tomas.forEach((t, i) => {
+    const div = document.createElement('div');
+    const pos = V.orden.indexOf(t);
+    div.className = 'toma' + (pos >= 0 ? ' sel' : '');
+    div.title = t.vid.nombre + ' · ' + seg(t.start) + ' – ' + seg(t.end);
+    div.innerHTML = '<img alt=""><span class="num">' + (pos + 1) + '</span><span class="dur">' + seg(t.dur) + '</span>' +
+      '<span class="cols">' + t.cols.map(c => '<i style="background:' + c + '"></i>').join('') + '</span>' +
+      '<div class="tbtn"><button type="button" data-a="ver" title="Ver esta toma">▶</button>' +
+      (V.tomas[i + 1] && V.tomas[i + 1].vid === t.vid ? '<button type="button" data-a="unir" title="Unir con la siguiente">⤵</button>' : '') + '</div>';
+    div.querySelector('img').src = t.img;
+    div.onclick = e => {
+      const a = e.target.dataset.a;
+      if (a === 'ver') return reproducir({ sola: t });
+      if (a === 'unir') return unir(i);
+      const p = V.orden.indexOf(t);
+      if (p >= 0) V.orden.splice(p, 1); else V.orden.push(t);
+      pintarTomas();
+    };
+    cont.appendChild(div);
+  });
+  $('vTomasCard').hidden = !V.tomas.length;
+  $('vEdicion').hidden = !V.tomas.length;
+  $('vNTomas').textContent = V.tomas.length + ' · ' + V.orden.length + ' elegidas';
+  pintarOrden();
+}
+
+function unir(i) {
+  const a = V.tomas[i], b = V.tomas[i + 1];
+  a.end = b.end; a.dur = a.end - a.start;
+  V.tomas.splice(i + 1, 1);
+  const p = V.orden.indexOf(b);
+  if (p >= 0) V.orden.splice(p, 1);
+  pintarTomas();
+}
+
+$('vTodas').onclick = () => { V.tomas.forEach(t => { if (!V.orden.includes(t)) V.orden.push(t); }); pintarTomas(); };
+$('vNinguna').onclick = () => { V.orden = []; pintarTomas(); };
+
+let arrastre = -1;
+function pintarOrden() {
+  const cont = $('vOrden'), p = planear();
+  cont.innerHTML = '';
+  V.orden.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'o-item'; div.draggable = true;
+    const it = p.items[i];
+    div.innerHTML = '<div class="o-img"><img alt=""><b>' + (i + 1) + '</b>' +
+      (it && it.rate < 0.999 ? '<span class="lenta" title="La toma es más corta que el golpe: va un poco en cámara lenta">lenta</span>' : '') + '</div>' +
+      '<div class="o-btn"><button type="button" data-a="izq" title="Antes">◀</button><button type="button" data-a="x" title="Quitar">✕</button><button type="button" data-a="der" title="Después">▶</button></div>';
+    div.querySelector('img').src = t.img;
+    div.onclick = e => {
+      const a = e.target.dataset.a;
+      if (a === 'x') V.orden.splice(i, 1);
+      else if (a === 'izq' && i > 0) [V.orden[i - 1], V.orden[i]] = [V.orden[i], V.orden[i - 1]];
+      else if (a === 'der' && i < V.orden.length - 1) [V.orden[i + 1], V.orden[i]] = [V.orden[i], V.orden[i + 1]];
+      else return;
+      pintarTomas();
+    };
+    div.ondragstart = () => { arrastre = i; div.classList.add('arrastrando'); };
+    div.ondragend = () => div.classList.remove('arrastrando');
+    div.ondragover = e => e.preventDefault();
+    div.ondrop = e => {
+      e.preventDefault();
+      if (arrastre < 0 || arrastre === i) return;
+      const [t2] = V.orden.splice(arrastre, 1);
+      V.orden.splice(i, 0, t2);
+      arrastre = -1;
+      pintarTomas();
+    };
+    cont.appendChild(div);
+  });
+  $('vTotal').textContent = V.orden.length ? seg(p.total) : '';
+  if (!corriendo) $('vTiempo').textContent = '0.0 / ' + seg(p.total);
+  pintarOnda();
+  if (!corriendo) dibujarQuieto();
+}
+
+// Duración de cada toma: al ritmo de la canción o como viene.
+function ritmo() { return V.musica ? +document.querySelector('input[name=vRitmo]:checked').value : 0; }
+function planear(lista = V.orden) {
+  const r = ritmo(), max = +$('vMaxToma').value;
+  const items = lista.map(t => {
+    if (r) {
+      const slot = r * 60 / V.bpm;
+      return { t, slot, rate: t.dur >= slot ? 1 : Math.max(0.5, t.dur / slot) };
+    }
+    return { t, slot: max ? Math.min(t.dur, max) : t.dur, rate: 1 };
+  });
+  return { items, total: items.reduce((s, i) => s + i.slot, 0) };
+}
+$('vMaxToma').oninput = () => {
+  const v = +$('vMaxToma').value;
+  $('vMaxTxt').textContent = v ? 'Máximo ' + v + ' s por toma' : 'Completa (como viene)';
+  pintarOrden();
+};
+document.querySelectorAll('input[name=vRitmo]').forEach(r => r.onchange = pintarOrden);
+
+// ---------- Audio ----------
+let actx, nodos;
+function audio() {
+  if (actx) return;
+  actx = new AudioContext();
+  const n = nodos = {};
+  n.musica = actx.createGain();
+  n.video = actx.createGain();
+  n.mezcla = actx.createGain();
+  n.bajos = new BiquadFilterNode(actx, { type: 'lowshelf', frequency: 110 });
+  n.medios = new BiquadFilterNode(actx, { type: 'peaking', frequency: 1000, Q: 0.9 });
+  n.agudos = new BiquadFilterNode(actx, { type: 'highshelf', frequency: 6000 });
+  n.limite = new DynamicsCompressorNode(actx, { threshold: -6, knee: 6, ratio: 6, attack: 0.003, release: 0.2 });
+  n.salida = actx.createMediaStreamDestination();
+  n.musica.connect(n.mezcla); n.video.connect(n.mezcla);
+  n.mezcla.connect(n.bajos).connect(n.medios).connect(n.agudos).connect(n.limite);
+  n.limite.connect(actx.destination); n.limite.connect(n.salida);
+  for (const el of players) actx.createMediaElementSource(el).connect(n.video);
+  aplicarSonido();
+}
+function aplicarSonido() {
+  if (!actx) return;
+  nodos.musica.gain.value = $('vVolMusica').value / 100;
+  nodos.video.gain.value = $('vVolVideo').value / 100;
+  nodos.bajos.gain.value = +$('vBajos').value;
+  nodos.medios.gain.value = +$('vMedios').value;
+  nodos.agudos.gain.value = +$('vAgudos').value;
+}
+
+$('vBtnMusica').onclick = () => $('vMusicaIn').click();
+$('vMusicaIn').onchange = async () => {
+  const f = $('vMusicaIn').files[0];
+  $('vMusicaIn').value = '';
+  if (!f) return;
+  audio();
+  $('vMusicaTxt').textContent = 'Escuchando el ritmo de "' + f.name + '"…';
+  try {
+    const buf = await actx.decodeAudioData(await f.arrayBuffer());
+    analizarRitmo(buf);
+    V.musica = { buf, nombre: f.name, picos: picos(buf) };
+    V.inicio = alGolpe(V.b0);
+    $('vMusicaTxt').textContent = '🎵 ' + f.name + ' · ' + seg(buf.duration);
+    $('vMusicaBox').hidden = false; $('vQuitarMusica').hidden = false; $('vSinRitmoBox').hidden = true;
+    if ($('vVolVideo').value == 100) { $('vVolVideo').value = 0; pintarSliders(); }
+    pintarOrden();
+  } catch (err) {
+    console.error(err);
+    $('vMusicaTxt').textContent = 'No pude leer esa canción. Prueba con un MP3 o M4A.';
+  }
+};
+$('vQuitarMusica').onclick = () => {
+  V.musica = null;
+  $('vMusicaBox').hidden = true; $('vQuitarMusica').hidden = true; $('vSinRitmoBox').hidden = false;
+  $('vMusicaTxt').textContent = 'Sin canción: usa el sonido del video.';
+  if ($('vVolVideo').value == 0) { $('vVolVideo').value = 100; pintarSliders(); }
+  pintarOrden();
+};
+
+// Encuentra el tempo (BPM) y dónde cae cada golpe.
+function analizarRitmo(buf) {
+  const sr = buf.sampleRate, n = buf.length, hop = 512, nf = Math.floor(n / hop), fps = sr / hop;
+  const mono = new Float32Array(n);
+  for (let c = 0; c < buf.numberOfChannels; c++) { const ch = buf.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += ch[i] / buf.numberOfChannels; }
+  const ef = new Float32Array(nf), el = new Float32Array(nf), a = 1 - Math.exp(-2 * Math.PI * 150 / sr);
+  let lp = 0;
+  for (let f = 0; f < nf; f++) {
+    let s1 = 0, s2 = 0;
+    for (let j = f * hop, e = j + hop; j < e; j++) { const x = mono[j]; lp += a * (x - lp); s1 += x * x; s2 += lp * lp; }
+    ef[f] = Math.log(1e-7 + s1); el[f] = Math.log(1e-7 + s2);
+  }
+  const o = new Float32Array(nf);
+  for (let f = 1; f < nf; f++) o[f] = Math.max(0, ef[f] - ef[f - 1]) + 1.5 * Math.max(0, el[f] - el[f - 1]);
+  const on = new Float32Array(nf);
+  for (let f = 0; f < nf; f++) {
+    let s = 0, c = 0;
+    for (let k = Math.max(0, f - 8); k <= Math.min(nf - 1, f + 8); k++) { s += o[k]; c++; }
+    on[f] = Math.max(0, o[f] - s / c);
+  }
+  const at = x => { const i = Math.floor(x); return i < 0 || i >= nf - 1 ? 0 : on[i] + (on[i + 1] - on[i]) * (x - i); };
+  // 1) tempo aproximado por autocorrelación
+  let mejor = 120, mejorS = -1;
+  for (let bpm = 70; bpm <= 180; bpm += 0.5) {
+    const lag = fps * 60 / bpm;
+    let s = 0;
+    for (let f = 0; f + 2 * lag < nf - 1; f += 1) s += on[f] * (at(f + lag) + 0.5 * at(f + 2 * lag));
+    s *= Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 0.9, 2));
+    if (s > mejorS) { mejorS = s; mejor = bpm; }
+  }
+  // 2) afinar tempo y fase juntos con un peine de golpes a lo largo de toda la canción
+  let best = { s: -1, bpm: mejor, fase: 0 };
+  for (let bpm = mejor - 1.5; bpm <= mejor + 1.5; bpm += 0.05) {
+    const P = fps * 60 / bpm;
+    for (let ph = 0; ph < P; ph += 0.5) {
+      let s = 0;
+      for (let x = ph; x < nf - 1; x += P) s += at(x);
+      if (s > best.s) best = { s, bpm, fase: ph };
+    }
+  }
+  V.bpm = Math.round(best.bpm * 100) / 100;
+  V.b0 = best.fase / fps;
+  $('vBpm').textContent = Math.round(V.bpm);
+}
+function alGolpe(t) {
+  const p = 60 / V.bpm;
+  let g = V.b0 + Math.round((t - V.b0) / p) * p;
+  while (g < 0) g += p;
+  return g;
+}
+$('vBpmMitad').onclick = () => { if (V.bpm / 2 >= 40) { V.bpm /= 2; $('vBpm').textContent = Math.round(V.bpm); V.inicio = alGolpe(V.inicio); pintarOrden(); } };
+$('vBpmDoble').onclick = () => { if (V.bpm * 2 <= 260) { V.bpm *= 2; $('vBpm').textContent = Math.round(V.bpm); V.inicio = alGolpe(V.inicio); pintarOrden(); } };
+
+function picos(buf) {
+  const ch = buf.getChannelData(0), N = 600, paso = Math.floor(ch.length / N), out = new Float32Array(N);
+  for (let i = 0; i < N; i++) { let m = 0; for (let j = i * paso, e = j + paso; j < e; j += 8) m = Math.max(m, Math.abs(ch[j])); out[i] = m; }
+  return out;
+}
+function pintarOnda() {
+  if (!V.musica) return;
+  const c = $('vOnda'), w = c.clientWidth || 300, h = 80, dpr = devicePixelRatio || 1;
+  c.width = w * dpr; c.height = h * dpr;
+  const x = c.getContext('2d');
+  x.scale(dpr, dpr);
+  const dur = V.musica.buf.duration, tot = planear().total, px = t => t / dur * w;
+  x.fillStyle = 'rgba(34,211,238,.13)';
+  x.fillRect(px(V.inicio), 0, Math.max(2, px(tot)), h);
+  const P = V.musica.picos;
+  x.fillStyle = '#5b6573';
+  for (let i = 0; i < P.length; i++) { const bh = Math.max(1, P[i] * (h - 10)); x.fillRect(i / P.length * w, (h - bh) / 2, Math.max(1, w / P.length - 0.5), bh); }
+  const p = 60 / V.bpm, r = ritmo() || 1;
+  if (w / (dur / p) > 2.5) {
+    for (let t = V.inicio, k = 0; t < V.inicio + tot - 1e-6; t += p, k++) {
+      x.fillStyle = k % r === 0 ? 'rgba(52,211,153,.9)' : 'rgba(255,255,255,.18)';
+      x.fillRect(px(t), 0, 1, h);
+    }
+  }
+  x.fillStyle = '#f87171';
+  x.fillRect(px(V.inicio) - 1, 0, 2, h);
+}
+$('vOnda').onclick = e => {
+  const r = $('vOnda').getBoundingClientRect();
+  V.inicio = alGolpe((e.clientX - r.left) / r.width * V.musica.buf.duration);
+  pintarOrden();
+};
+window.addEventListener('resize', pintarOnda);
+
+// ---------- Controles con número al lado ----------
+const unidades = { vVolMusica: '%', vVolVideo: '%', vBajos: ' dB', vMedios: ' dB', vAgudos: ' dB', vNitidez: '%', vContraste: '', vColor: '', vBrillo: '' };
+function pintarSliders() {
+  for (const id in unidades) {
+    const v = $(id).value;
+    $(id).nextElementSibling.textContent = (unidades[id] === ' dB' || !unidades[id] ? (v > 0 ? '+' : '') : '') + v + unidades[id];
+  }
+  aplicarSonido();
+  if (!corriendo) dibujarQuieto();
+}
+for (const id in unidades) $(id).addEventListener('input', pintarSliders);
+const PRESETS = { auto: [55, 10, 15, 2], original: [0, 0, 0, 0] };
+function preset(p) { ['vNitidez', 'vContraste', 'vColor', 'vBrillo'].forEach((id, i) => $(id).value = p[i]); pintarSliders(); }
+$('vAuto').onclick = () => preset(PRESETS.auto);
+$('vReset').onclick = () => preset(PRESETS.original);
+document.querySelectorAll('input[name=vFormato],input[name=vEncuadre]').forEach(r => r.onchange = () => { tamLienzo(false); dibujarQuieto(); });
+
+// ---------- Dibujo con WebGL (nitidez, color, encuadre, efectos) ----------
+const lienzo = $('vLienzo');
+const gl = lienzo.getContext('webgl', { preserveDrawingBuffer: true, alpha: false, antialias: false });
+let prog, tex, U = {};
+if (gl) {
+  const vs = 'attribute vec2 p;varying vec2 v;void main(){v=(p+1.)/2.;gl_Position=vec4(p,0.,1.);}';
+  const fs = `precision highp float;varying vec2 v;uniform sampler2D t;uniform vec2 tx;uniform float sa,da,zoom,sharp,con,sat,bri,flash;uniform int modo;
+  vec2 cubre(vec2 u){vec2 c=u-.5;if(sa>da)c.x*=da/sa;else c.y*=sa/da;return c/zoom+.5;}
+  vec2 cabe(vec2 u){vec2 c=u-.5;if(sa>da)c.y*=sa/da;else c.x*=da/sa;return c/zoom+.5;}
+  vec3 nitido(vec2 q){vec3 c=texture2D(t,q).rgb;vec3 n=texture2D(t,q+vec2(tx.x,0.)).rgb+texture2D(t,q-vec2(tx.x,0.)).rgb+texture2D(t,q+vec2(0.,tx.y)).rgb+texture2D(t,q-vec2(0.,tx.y)).rgb;return c+(c*4.-n)*sharp;}
+  vec3 borroso(vec2 q){vec3 s=vec3(0.);for(int i=0;i<24;i++){float a=float(i)*2.39996;float r=.01+.06*sqrt(float(i)/24.);s+=texture2D(t,clamp(q+vec2(cos(a),sin(a))*r,0.,1.)).rgb;}return s/24.;}
+  void main(){vec3 c;
+    if(modo==1){vec2 q=cabe(v);if(q.x<0.||q.x>1.||q.y<0.||q.y>1.)c=borroso(clamp(cubre(v),0.,1.))*.5;else c=nitido(q);}
+    else c=nitido(clamp(cubre(v),0.,1.));
+    c=(c-.5)*con+.5+bri;float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,sat);c=mix(c,vec3(1.),flash);
+    gl_FragColor=vec4(clamp(c,0.,1.),1.);}`;
+  const sh = (tipo, src) => { const s = gl.createShader(tipo); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const ap = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
+  tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  ['t', 'tx', 'sa', 'da', 'zoom', 'sharp', 'con', 'sat', 'bri', 'flash', 'modo'].forEach(k => U[k] = gl.getUniformLocation(prog, k));
+}
+const ctx2d = gl ? null : lienzo.getContext('2d');
+
+function formato() { const [a, b] = document.querySelector('input[name=vFormato]:checked').value.split(':').map(Number); return a / b; }
+function tamLienzo(exportar) {
+  const ancho = exportar ? +document.querySelector('input[name=vRes]:checked').value : 720;
+  lienzo.width = ancho; lienzo.height = Math.round(ancho / formato() / 2) * 2;
+  if (gl) gl.viewport(0, 0, lienzo.width, lienzo.height);
+}
+function dibujar(el, efx = { zoom: 1, flash: 0 }) {
+  if (!el || el.readyState < 2 || !el.videoWidth) return;
+  const sa = el.videoWidth / el.videoHeight, da = lienzo.width / lienzo.height;
+  const modoE = +document.querySelector('input[name=vEncuadre]:checked').value;
+  if (!gl) {
+    const W = lienzo.width, H = lienzo.height;
+    let w = W, h = W / sa;
+    if ((h < H) !== (modoE === 1)) { h = H; w = H * sa; }
+    ctx2d.fillStyle = '#000'; ctx2d.fillRect(0, 0, W, H);
+    ctx2d.drawImage(el, (W - w) / 2, (H - h) / 2, w, h);
+    return;
+  }
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, el);
+  gl.uniform1i(U.t, 0);
+  gl.uniform2f(U.tx, 1 / el.videoWidth, 1 / el.videoHeight);
+  gl.uniform1f(U.sa, sa); gl.uniform1f(U.da, da);
+  gl.uniform1f(U.zoom, efx.zoom);
+  gl.uniform1f(U.sharp, $('vNitidez').value / 100 * 0.6);
+  gl.uniform1f(U.con, 1 + $('vContraste').value / 100);
+  gl.uniform1f(U.sat, 1 + $('vColor').value / 100);
+  gl.uniform1f(U.bri, $('vBrillo').value / 200);
+  gl.uniform1f(U.flash, efx.flash);
+  gl.uniform1i(U.modo, modoE);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+async function dibujarQuieto() {
+  const t = V.orden[0] || V.tomas[0];
+  if (!t || corriendo) return;
+  try {
+    await irA(t.vid.el, t.start + Math.min(0.3, t.dur / 2));
+    if (!corriendo) dibujar(t.vid.el);
+  } catch (e) {}
+}
+
+// ---------- Reproducir / exportar ----------
+const players = [0, 1].map(() => {
+  const el = document.createElement('video');
+  el.playsInline = true; el.preload = 'auto';
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  return el;
+});
+let corriendo = false, rafId = 0, fuente = null, grabadora = null;
+
+async function preparar(el, item, idx) {
+  el._listo = -1;
+  if (el._url !== item.t.vid.url) { el._url = item.t.vid.url; el.src = item.t.vid.url; await esperar(el, 'loadeddata'); }
+  await irA(el, item.t.start);
+  el._listo = idx;
+}
+
+function tipoVideo() {
+  const tipos = ['video/mp4;codecs=avc1.640033,mp4a.40.2', 'video/mp4;codecs=avc1.4d0033,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4',
+    'video/webm;codecs=vp9,opus', 'video/webm'];
+  return tipos.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+}
+
+async function reproducir({ sola = null, exportar = false } = {}) {
+  if (corriendo) detener();
+  const p = sola ? planear([sola]) : planear();
+  if (sola) p.items[0] = { t: sola, slot: sola.dur, rate: 1 };
+  if (!p.items.length) { alert('Primero toca las tomas que quieres en tu video.'); return; }
+  audio();
+  await actx.resume();
+  corriendo = true;
+  const conMusica = !sola && !!V.musica;
+  tamLienzo(exportar);
+  const lim = [0];
+  p.items.forEach(it => lim.push(lim[lim.length - 1] + it.slot));
+  const total = lim[lim.length - 1];
+  $('vPlay').textContent = '⏸ Ver';
+  $('vExportar').disabled = true;
+  try {
+    await preparar(players[0], p.items[0], 0);
+    if (p.items[1]) preparar(players[1], p.items[1], 1).catch(() => {});
+  } catch (e) { corriendo = false; terminarUI(); alert(e.message); return; }
+  dibujar(players[0]);
+
+  if (exportar) {
+    const tipo = tipoVideo();
+    if (!tipo) { corriendo = false; terminarUI(); alert('Este navegador no puede exportar video. Usa Google Chrome actualizado.'); return; }
+    const fps = +document.querySelector('input[name=vFps]:checked').value;
+    const stream = lienzo.captureStream(fps);
+    nodos.salida.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+    const mbps = { 1080: 16, 1440: 26, 2160: 45 }[lienzo.width] || 16;
+    const partes = [];
+    grabadora = new MediaRecorder(stream, { mimeType: tipo, videoBitsPerSecond: mbps * 1e6 * (fps === 60 ? 1.5 : 1), audioBitsPerSecond: 256000 });
+    grabadora.ondataavailable = e => { if (e.data.size) partes.push(e.data); };
+    grabadora.onstop = () => {
+      const blob = new Blob(partes, { type: tipo.split(';')[0] });
+      const ext = tipo.includes('mp4') ? 'mp4' : 'webm';
+      const d = new Date(), nom = 'fitwearmx-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '-' +
+        String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + '.' + ext;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = nom;
+      a.textContent = '⬇️ Descargar ' + nom + ' (' + (blob.size / 1048576).toFixed(1) + ' MB)';
+      $('vDescarga').innerHTML = ''; $('vDescarga').appendChild(a);
+      a.click();
+      $('vExpTxt').textContent = ext === 'mp4' ? '✅ Listo. Ábrelo en Edits o súbelo directo a Instagram.' : '✅ Listo (WEBM). Si Instagram no lo acepta, actualiza Chrome para exportar en MP4.';
+      $('vExpProg').hidden = true;
+    };
+    $('vExpProg').hidden = false; $('vExpBarra').style.width = '0';
+    $('vExpTxt').textContent = 'Exportando en tiempo real… no cambies de pestaña ni minimices la ventana.';
+    $('vDescarga').innerHTML = '';
+    grabadora.start(1000);
+  }
+
+  const t0 = actx.currentTime + 0.12;
+  if (conMusica) {
+    fuente = actx.createBufferSource();
+    fuente.buffer = V.musica.buf;
+    const g = actx.createGain();
+    fuente.connect(g).connect(nodos.musica);
+    if ($('vFade').checked && total > 3) { g.gain.setValueAtTime(1, t0 + total - 1.5); g.gain.linearRampToValueAtTime(0, t0 + total); }
+    fuente.start(t0, V.inicio, total + 0.05);
+  }
+  const zoomOn = $('vZoom').checked, flashOn = $('vFlash').checked;
+  let idx = -1, actual = players[0], esperando = -1;
+  const ciclo = () => {
+    if (!corriendo) return;
+    const ahora = actx.currentTime - t0;
+    if (ahora >= total) { terminar(); return; }
+    // Arranca la siguiente toma 1 cuadro antes para que el cambio caiga justo en el golpe.
+    let i = 0;
+    while (i < p.items.length - 1 && ahora >= lim[i + 1] - 0.03) i++;
+    if (ahora >= 0 && i !== idx) {
+      const anterior = actual;
+      idx = i; esperando = i;
+      if (i > 0) anterior.pause();
+      if (p.items[i + 1]) {
+        const libre = players[(i + 1) % 2];
+        if (libre !== players[i % 2]) preparar(libre, p.items[i + 1], i + 1).catch(() => {});
+      }
+    }
+    if (esperando >= 0) {
+      const el = players[esperando % 2];
+      if (el._listo === esperando) {
+        el.playbackRate = p.items[esperando].rate;
+        el.play().catch(() => {});
+        actual = el; esperando = -1;
+      }
+    }
+    const it = p.items[Math.max(0, idx)], dt = ahora - lim[Math.max(0, idx)];
+    if (actual.currentTime >= it.t.end - 0.02 && !actual.paused) actual.pause();
+    const efx = { zoom: zoomOn && !sola && idx > 0 ? 1 + 0.08 * Math.exp(-dt / 0.13) : 1, flash: flashOn && !sola && idx > 0 ? 0.7 * Math.exp(-dt / 0.07) : 0 };
+    dibujar(actual, efx);
+    $('vTiempo').textContent = seg(Math.max(0, ahora)) + ' / ' + seg(total);
+    if (exportar) $('vExpBarra').style.width = Math.round(Math.max(0, ahora) / total * 100) + '%';
+    rafId = requestAnimationFrame(ciclo);
+  };
+  rafId = requestAnimationFrame(ciclo);
+}
+
+function terminar() {
+  cancelAnimationFrame(rafId);
+  players.forEach(el => el.pause());
+  if (fuente) { try { fuente.stop(); } catch (e) {} fuente = null; }
+  if (grabadora && grabadora.state !== 'inactive') grabadora.stop();
+  grabadora = null;
+  corriendo = false;
+  terminarUI();
+}
+function terminarUI() {
+  $('vPlay').textContent = '▶ Ver';
+  $('vExportar').disabled = false;
+  tamLienzo(false);
+  dibujarQuieto();
+}
+function detener() {
+  if (grabadora) { grabadora.ondataavailable = null; grabadora.onstop = null; $('vExpTxt').textContent = 'Exportación cancelada.'; $('vExpProg').hidden = true; }
+  terminar();
+}
+$('vPlay').onclick = () => corriendo ? detener() : reproducir();
+$('vStop').onclick = detener;
+$('vExportar').onclick = () => reproducir({ exportar: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && grabadora) $('vExpTxt').textContent = '⚠️ Cambiaste de pestaña: el video puede salir trabado. Regresa y vuelve a exportar.';
+});
+window.addEventListener('beforeunload', e => { if (V.orden.length) { e.preventDefault(); e.returnValue = ''; } });
+
+pintarSliders();
+})();
 </script>
 </body>
 </html>
