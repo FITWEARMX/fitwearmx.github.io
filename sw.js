@@ -1,7 +1,7 @@
 /* Guarda las apps en el aparato para que abran sin internet.
-   Cuando hay internet, revisa en segundo plano si hay una versión nueva. */
-const CACHE = 'mis-apps-v8';
-const FILES = ["/", "/index.html", "/manifest.webmanifest", "/icon-180.png", "/icon-512.png", "/cotizador/", "/cotizador/index.html", "/cotizador/manifest.webmanifest", "/cotizador/icon-180.png", "/cotizador/icon-512.png", "/facturas/prueba.html", "/facturas/", "/facturas/index.html", "/facturas/manifest.webmanifest", "/facturas/icon-180.png", "/facturas/icon-512.png", "/clientes/prueba.html", "/clientes/", "/clientes/index.html", "/clientes/manifest.webmanifest", "/clientes/icon-180.png", "/clientes/icon-512.png", "/catalogo/prueba.html", "/catalogo/", "/catalogo/index.html", "/catalogo/manifest.webmanifest", "/catalogo/icon-180.png", "/catalogo/icon-512.png", "/historias/", "/historias/index.html", "/historias/manifest.webmanifest", "/historias/icon-180.png", "/historias/icon-512.png"];
+   Las páginas salen siempre nuevas si hay internet; lo demás se revisa en segundo plano. */
+const CACHE = 'mis-apps-v9';
+const FILES = ["/", "/index.html", "/manifest.webmanifest", "/icon-180.png", "/icon-512.png", "/cotizador/", "/cotizador/index.html", "/cotizador/manifest.webmanifest", "/cotizador/icon-180.png", "/cotizador/icon-512.png", "/facturas/prueba.html", "/facturas/", "/facturas/index.html", "/facturas/manifest.webmanifest", "/facturas/icon-180.png", "/facturas/icon-512.png", "/clientes/prueba.html", "/clientes/", "/clientes/index.html", "/clientes/manifest.webmanifest", "/clientes/icon-180.png", "/clientes/icon-512.png", "/catalogo/prueba.html", "/catalogo/", "/catalogo/index.html", "/catalogo/manifest.webmanifest", "/catalogo/icon-180.png", "/catalogo/icon-512.png", "/historias/", "/historias/index.html", "/historias/manifest.webmanifest", "/historias/icon-180.png", "/historias/icon-512.png", "/recortador/", "/recortador/index.html"];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -22,6 +22,14 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/tienda/')) return;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(req, { ignoreSearch: true });
+    // Las páginas se piden primero a internet para que siempre salga lo más nuevo
+    if (req.mode === 'navigate' && cached) {
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) { cache.put(req, res.clone()); return res; }
+      } catch (_) {}
+      return cached;
+    }
     const fresh = fetch(req).then(res => {
       if (res && res.ok) cache.put(req, res.clone());
       return res;
