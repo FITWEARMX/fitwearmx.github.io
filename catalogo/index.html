@@ -1120,13 +1120,14 @@ function pintarClaves(){
 // colecciones que tienes (por ejemplo "Gymshark x Sam Sulek"), para pasarlas completas a Early Access
 function colsCatalogo(){ const m=new Map(); productos.forEach(p=>{ const c=coleccionOficial(p); if(!c) return; const k=marcaOficial(p)+'|'+c; if(!m.has(k)) m.set(k,{marca:marcaOficial(p),col:c,ps:[]}); m.get(k).ps.push(p); }); return [...m.values()].sort((a,b)=>a.col.localeCompare(b.col)); }
 function pintarEaCol(){ const cs=colsCatalogo();
-  $('#eaCol').innerHTML=cs.length?cs.map((c,i)=>'<option value="'+i+'">'+esc(c.col)+' ('+esc(c.marca)+') · '+c.ps.length+' productos'+(c.ps.every(p=>B(p)==='early')?' · ya en Early Access':'')+'</option>').join(''):'<option value="">No tienes colecciones guardadas</option>';
-  const c=cs[0]; $('#eaColClave').value=c?((GH.claves||{})[c.marca]||''):''; $('#eaColFecha').value=c?(c.ps.map(p=>p.dropFecha).filter(Boolean)[0]||''):''; }
+  // sin colección elegida al abrir: así no se pasa una por accidente
+  $('#eaCol').innerHTML=cs.length?'<option value="">— Elige la colección —</option>'+cs.map((c,i)=>'<option value="'+i+'">'+esc(c.col)+' ('+esc(c.marca)+') · '+c.ps.length+' productos'+(c.ps.every(p=>B(p)==='early')?' · ya en Early Access':'')+'</option>').join(''):'<option value="">No tienes colecciones guardadas</option>';
+  $('#eaColClave').value=''; $('#eaColFecha').value=''; }
 function abrirAj(){ pintarGH(); pintarClaves(); pintarEaCol(); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
 $('#btnAjustes').addEventListener('click',abrirAj);
-$('#eaCol').addEventListener('change',()=>{ const c=colsCatalogo()[+$('#eaCol').value]; if(!c) return; $('#eaColClave').value=(GH.claves||{})[c.marca]||''; $('#eaColFecha').value=c.ps.map(p=>p.dropFecha).filter(Boolean)[0]||''; });
+$('#eaCol').addEventListener('change',()=>{ const v=$('#eaCol').value, c=v===''?null:colsCatalogo()[+v]; if(!c){ $('#eaColClave').value=''; $('#eaColFecha').value=''; return; } $('#eaColClave').value=(GH.claves||{})[c.marca]||''; $('#eaColFecha').value=c.ps.map(p=>p.dropFecha).filter(Boolean)[0]||''; });
 $('#eaColBtn').addEventListener('click',async()=>{
-  const c=colsCatalogo()[+$('#eaCol').value]; if(!c){ toast('Primero manda una colección con la extensión'); return; }
+  const v=$('#eaCol').value, c=v===''?null:colsCatalogo()[+v]; if(!c){ toast(colsCatalogo().length?'Primero elige la colección':'Primero manda una colección con la extensión'); return; }
   const fecha=$('#eaColFecha').value, clave=$('#eaColClave').value.trim();
   if(!fecha){ toast('Pon la fecha y hora del drop'); return; }
   if(!clave&&!GH.clave){ toast('Pon una contraseña para este drop'); return; }
@@ -1155,6 +1156,7 @@ $('#ajGuardar').addEventListener('click',async()=>{
 const GH_KEY=CFG.db+'_github';
 let GH={user:'FITWEARMX',repo:'tienda',token:'',clave:'',claves:{}};
 try{ Object.assign(GH,JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){}
+if(!GH.user) GH.user='FITWEARMX'; if(!GH.repo) GH.repo='tienda';
 function pintarGH(){
   $('#ghUser').value=GH.user; $('#ghRepo').value=GH.repo; $('#ghToken').value=GH.token; $('#ghClave').value=GH.clave||'';
   const url='https://'+GH.user.toLowerCase()+'.github.io/'+GH.repo+'/';
@@ -1163,6 +1165,7 @@ function pintarGH(){
 }
 function leerGH(){ GH.user=$('#ghUser').value.trim(); GH.repo=$('#ghRepo').value.trim(); GH.token=$('#ghToken').value.trim(); GH.clave=$('#ghClave').value.trim();
   GH.claves=GH.claves||{}; document.querySelectorAll('[data-clave-marca]').forEach(i=>{ const v=i.value.trim(); if(v) GH.claves[i.dataset.claveMarca]=v; else delete GH.claves[i.dataset.claveMarca]; }); try{ localStorage.setItem(GH_KEY,JSON.stringify(GH)); }catch(e){} }
+pintarGH(); // llena usuario, repositorio y llave desde que abre (si no, "Publicar tienda" los guardaba vacíos)
 const dormir=ms=>new Promise(r=>setTimeout(r,ms));
 async function gh(path,opt,intento){
   opt=opt||{}; intento=intento||0;
