@@ -1392,6 +1392,8 @@ async function armarTienda(){
       estado:B(p),estadoTxt:ESTADO_TXT[p.estado]?'':estTxt(p.estado),dropFecha:B(p)==='early'?(p.dropFecha||''):'',llegaFecha:B(p)==='camino'?(p.llegaFecha||''):'',
       precio:venta,precioBase:base,oferta:venta<base,destacado:!!p.destacado,creado:p.createdAt||0,colores});
   }
+  // fecha del drop: la próxima que viene (si todas ya pasaron, la más reciente)
+  const proximaFecha=ps=>{ const f=ps.map(p=>p.dropFecha).filter(Boolean).sort(), hoy=new Date().toISOString().slice(0,16); return f.find(x=>x>=hoy)||f[f.length-1]||''; };
   const datos={actualizado:new Date().toISOString(),productos:lista};
   // Early Access con contraseña: esos productos se publican cifrados (sin la contraseña no se pueden leer)
   const ea=lista.filter(p=>p.estado==='early');
@@ -1404,7 +1406,7 @@ async function armarTienda(){
       const dest=ps.find(p=>p.destacado&&((p.colores[0]||{}).fotos||[]).length)||ps.find(p=>((p.colores[0]||{}).fotos||[]).length);
       const cuenta={}; ps.forEach(p=>{ if(p.marca) cuenta[p.marca]=(cuenta[p.marca]||0)+1; });
       datos.privados.push({privado:await cifrar(JSON.stringify(ps),clave),n:ps.length,portada:dest?dest.colores[0].fotos[0]:'',
-        marca:Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,3).join(' y ').replace(/ y (?=.* y )/g,', ')||'',fecha:ps.map(p=>p.dropFecha).filter(Boolean).sort()[0]||''}); }
+        marca:Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a]).slice(0,3).join(' y ').replace(/ y (?=.* y )/g,', ')||'',fecha:proximaFecha(ps)}); }
     // compatibilidad: el primero también en el formato de antes
     const g0=datos.privados[0]; datos.privado=g0.privado; datos.privadoN=g0.n; datos.privadoPortada=g0.portada; datos.privadoMarca=g0.marca; datos.privadoFecha=g0.fecha; }
   // portada: noticias vigentes, en el orden que las pusiste
