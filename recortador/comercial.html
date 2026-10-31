@@ -202,6 +202,7 @@
     <h4>Herramientas</h4>
     <a href="#" data-vista="editor"><i>✂︎</i> Editor</a>
     <a href="#" data-herr="producto"><i>👕</i> Prenda en negro</a>
+    <a href="#" data-herr="sombra"><i>👤</i> Sombra + prenda</a>
     <a href="#" data-herr="celular"><i>📱</i> Celular</a>
     <a href="#" data-herr="texto"><i>𝐀</i> Texto</a>
     <a href="#" data-herr="ritmo"><i>♫</i> Música</a>
@@ -278,6 +279,7 @@
       <button type="button" data-agregar="video">🎬 Video/foto</button>
       <button type="button" data-agregar="celular">📱 Celular</button>
       <button type="button" data-agregar="producto">👕 Prenda</button>
+      <button type="button" data-agregar="sombra">👤 Sombra</button>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
       <button type="button" data-agregar="boton">🟢 Botón</button>
@@ -376,9 +378,17 @@ const TIPOS = {
       ['brillo', 'Luz detrás', 'color'], ['volumen', 'Volumen', 'rango', 0, 1, 0.05],
       ['toque', 'Dedo que toca', 'sel', { no: 'No', si: 'Sí' }], ['toqueX', 'Toque ↔', 'rango', 0, 1, 0.01], ['toqueY', 'Toque ↕', 'rango', 0, 1, 0.01],
       ['toqueT', 'Toca en (s)', 'num', 0, 600, 0.05], ...FADES] },
+  sombra: { nombre: 'Sombra + prenda', icono: '👤', pista: 'V2', dur: 4,
+    def: { src: '', nota: 'Tu video: alguien moviéndose', prenda: '', desde: 0, luz: '#7c3aed', detalle: 0.12, zoomIni: 1, zoomFin: 1.15,
+      anchoPrenda: 2.2, subirPrenda: 0, volumen: 0, fadeIn: 0.1, fadeOut: 0.2 },
+    campos: [['src', 'Video', 'medio', 'video'], ['prenda', 'Prenda encima', 'medio', 'imagen'], ['nota', 'Nota', 'texto'],
+      ['desde', 'Empieza en (s)', 'num', 0, 3600, 0.1], ['luz', 'Luz del contorno', 'color'], ['detalle', 'Se ve el cuerpo', 'rango', 0, 0.6, 0.01],
+      ['anchoPrenda', 'Tamaño prenda', 'rango', 1, 3.5, 0.01], ['subirPrenda', 'Subir/bajar prenda', 'rango', -0.5, 0.5, 0.01],
+      ['zoomIni', 'Zoom inicio', 'rango', 1, 2.5, 0.01], ['zoomFin', 'Zoom final', 'rango', 1, 2.5, 0.01], ['volumen', 'Volumen', 'rango', 0, 1, 0.05], ...FADES] },
   producto: { nombre: 'Prenda', icono: '👕', pista: 'V2', dur: 1.8,
-    def: { src: '', nota: 'Foto de la prenda sin fondo', escala: 0.82, x: 0, y: 900, entrada: 'zoom', flotar: 'si', girar: 'si', luz: '#7c3aed', zoomFin: 1.06, fadeIn: 0, fadeOut: 0.15 },
+    def: { src: '', nota: 'Foto de la prenda sin fondo', cuerpo: 'no', escala: 0.82, x: 0, y: 900, entrada: 'zoom', flotar: 'si', girar: 'si', luz: '#7c3aed', zoomFin: 1.06, fadeIn: 0, fadeOut: 0.15 },
     campos: [['src', 'Foto', 'medio', 'imagen'], ['nota', 'Nota', 'texto'],
+      ['cuerpo', 'Cuerpo', 'sel', { no: 'Sin cuerpo', sombra: 'Sombra de persona (de frente)' }],
       ['entrada', 'Entrada', 'sel', { zoom: 'Sale de la oscuridad', subir: 'Sube', nada: 'Ya está ahí' }],
       ['flotar', 'Flotar', 'sel', { si: 'Sí', no: 'No' }], ['girar', 'Girar suave', 'sel', { si: 'Sí', no: 'No' }],
       ['escala', 'Tamaño', 'rango', 0.3, 1.2, 0.01], ['x', 'Mover ↔', 'rango', -500, 500, 1], ['y', 'Altura', 'rango', 200, 1700, 1],
@@ -512,7 +522,7 @@ function dibVideo(c, lt) {
   ctx.save(); ctx.globalAlpha = alfa(c, lt);
   const src = fuenteDe(c);
   const z = lerp(c.zoomIni, c.zoomFin, eInOut(clamp(lt / c.dur)));
-  if (src) cubrir(src, 0, 0, W, H, z); else relleno(0, 0, W, H, c.nota || 'Pon aquí tu video');
+  if (src) cubrir(src, 0, 0, W, H, z); else if (!medios[c.src]) relleno(0, 0, W, H, c.nota || 'Pon aquí tu video');
   ctx.restore();
 }
 
@@ -568,7 +578,8 @@ function dibCelular(c, lt, t) {
   ctx.beginPath(); ctx.roundRect(sx, sy, sw, sh, sr); ctx.clip();
   const src = fuenteDe(c);
   if (src) { ctx.fillStyle = '#000'; ctx.fillRect(sx, sy, sw, sh); cubrir(src, sx, sy, sw, sh); }
-  else relleno(sx, sy, sw, sh, c.nota || 'Tu grabación de pantalla');
+  else if (!medios[c.src]) relleno(sx, sy, sw, sh, c.nota || 'Tu grabación de pantalla');
+  else { ctx.fillStyle = '#000'; ctx.fillRect(sx, sy, sw, sh); }
   // dedo que toca: punto que aparece y onda que se abre
   if (c.toque === 'si') {
     const k = (lt - c.toqueT) / 0.7, px = sx + sw * c.toqueX, py = sy + sh * c.toqueY, rd = sw * 0.055;
@@ -695,8 +706,9 @@ function dibProducto(c, lt, t) {
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
   const src = fuenteDe(c);
-  const fl = c.flotar === 'si' ? Math.sin(t * 1.8) * 12 : 0;
-  const yaw = c.girar === 'si' ? Math.sin(lt * 1.3 + 0.6) * 0.2 : 0;
+  const conCuerpo = c.cuerpo === 'sombra';
+  const fl = conCuerpo ? Math.sin(t * 1.1) * 4 : c.flotar === 'si' ? Math.sin(t * 1.8) * 12 : 0;
+  const yaw = conCuerpo ? 0 : c.girar === 'si' ? Math.sin(lt * 1.3 + 0.6) * 0.2 : 0;
   const z = (c.entrada === 'zoom' ? lerp(1.3, 1, kin) : 1) * lerp(1, c.zoomFin, eInOut(clamp(lt / c.dur)));
   ctx.save();
   ctx.globalAlpha = a * kin;
@@ -706,13 +718,148 @@ function dibProducto(c, lt, t) {
   if (src) {
     const sw = src.naturalWidth || src.videoWidth, sh = src.naturalHeight || src.videoHeight;
     const s = Math.min(W * c.escala / sw, H * 0.62 / sh), w = sw * s, h = sh * s;
-    ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 70; ctx.shadowOffsetY = 40;
+    if (conCuerpo) {
+      // respira y se balancea tantito, siempre de frente
+      ctx.rotate(Math.sin(t * 0.8) * 0.012);
+      ctx.scale(1 + Math.sin(t * 2.1) * 0.006, 1 + Math.sin(t * 2.1) * 0.01);
+      cuerpoSombra(w, h, c.luz);
+      ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    } else { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 70; ctx.shadowOffsetY = 40; }
     ctx.drawImage(src, -w / 2, -h / 2, w, h);
   } else { const w = W * c.escala * 0.8; relleno(-w / 2, -w / 2, w, w, c.nota); }
   ctx.restore();
 }
 
-const DIBUJAR = { fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
+// ---------- sombra + prenda: la persona queda negra con luz de contorno y la prenda sigue sus hombros ----------
+// Usa MediaPipe (IA de Google que corre en el navegador, gratis): detecta el cuerpo y su silueta.
+let pose = null, poseCargando = false;
+async function cargarPose() {
+  if (pose || poseCargando) return;
+  poseCargando = true;
+  $('aviso').textContent = 'Cargando la IA que detecta el cuerpo (sólo la primera vez)…';
+  try {
+    const { FilesetResolver, PoseLandmarker } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+    const fs = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    const opciones = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task', delegate: d },
+      runningMode: 'VIDEO', numPoses: 1, outputSegmentationMasks: true });
+    try { pose = await PoseLandmarker.createFromOptions(fs, opciones('GPU')); } catch (e) { pose = await PoseLandmarker.createFromOptions(fs, opciones('CPU')); }
+    $('aviso').textContent = '👤 Listo: la IA ya detecta el cuerpo.';
+  } catch (e) { $('aviso').textContent = 'No pude cargar la IA del cuerpo: ' + e.message; }
+  poseCargando = false;
+  render(tAct);
+}
+const SOMBRAS = new Map();   // id del bloque -> { t, sil, lm }
+let tPose = 0;
+function analizar(c, el) {
+  let s = SOMBRAS.get(c.id);
+  if (!s) { s = { t: -1, sil: document.createElement('canvas'), lm: null }; SOMBRAS.set(c.id, s); }
+  if (!pose || Math.abs(s.t - el.currentTime) < 0.001) return s;
+  s.t = el.currentTime;
+  tPose = Math.max(tPose + 1, performance.now());
+  let r;
+  try { r = pose.detectForVideo(el, tPose); } catch (e) { return s; }
+  const m = r.segmentationMasks && r.segmentationMasks[0];
+  // si en este cuadro no encuentra a la persona, se queda con la última sombra buena (no enseña el video original)
+  if (!(m && r.landmarks && r.landmarks[0])) { if (m) m.close(); return s; }
+  s.hay = true;
+  if (m) {
+    const w = m.width, h = m.height, conf = m.getAsFloat32Array();
+    if (s.sil.width !== w || s.sil.height !== h) { s.sil.width = w; s.sil.height = h; }
+    const sc = s.sil.getContext('2d'), img = sc.createImageData(w, h), d = img.data;
+    for (let i = 0; i < conf.length; i++) d[i * 4 + 3] = conf[i] > 0.35 ? Math.min(255, conf[i] * 300) : 0;
+    sc.putImageData(img, 0, 0);
+    if (c.detalle > 0) {       // un poquito del cuerpo real, gris y oscuro, adentro de la sombra
+      sc.save(); sc.globalCompositeOperation = 'source-atop'; sc.globalAlpha = c.detalle;
+      sc.filter = 'grayscale(1) brightness(.55) contrast(1.5)'; sc.drawImage(el, 0, 0, w, h); sc.restore();
+    }
+    m.close();
+  }
+  const lm = r.landmarks && r.landmarks[0];
+  if (lm) {
+    const pts = [11, 12, 23, 24].map(i => lm[i]);
+    if (!s.lm) s.lm = pts.map(p => ({ x: p.x, y: p.y }));
+    else s.lm.forEach((q, i) => { q.x = q.x * 0.55 + pts[i].x * 0.45; q.y = q.y * 0.55 + pts[i].y * 0.45; });   // suaviza el temblor
+  }
+  return s;
+}
+function dibSombra(c, lt) {
+  const a = alfa(c, lt);
+  const el = fuenteDe(c);
+  if (!el) { if (!medios[c.src]) { ctx.save(); ctx.globalAlpha = a; relleno(0, 0, W, H, c.nota || 'Sube un video de alguien moviéndose'); ctx.restore(); } return; }
+  if (!pose) cargarPose();
+  const vw = el.videoWidth, vh = el.videoHeight;
+  const z = lerp(c.zoomIni, c.zoomFin, eInOut(clamp(lt / c.dur)));
+  const s = Math.max(W / vw, H / vh) * z, dw = vw * s, dh = vh * s, dx = (W - dw) / 2, dy = (H - dh) / 2;
+  ctx.save(); ctx.globalAlpha = a;
+  if (!pose) { ctx.filter = 'brightness(.25) grayscale(1)'; ctx.drawImage(el, dx, dy, dw, dh); ctx.restore(); return; }
+  const r = analizar(c, el);
+  if (!r.hay) {            // en esta toma no se ve a nadie: el video oscuro y gris, para que no quede vacío
+    ctx.restore(); return;
+  }
+  if (r.sil.width) {
+    ctx.shadowColor = c.luz; ctx.shadowBlur = 45;
+    ctx.drawImage(r.sil, dx, dy, dw, dh);
+    ctx.shadowBlur = 18; ctx.drawImage(r.sil, dx, dy, dw, dh);
+    ctx.shadowColor = 'transparent';
+  }
+  const pr = medios[c.prenda];
+  if (r.lm && pr && pr.img && pr.img.naturalWidth) {
+    const P2 = q => ({ x: dx + q.x * dw, y: dy + q.y * dh });
+    const [L, R, LH, RH] = r.lm.map(P2);
+    const hom = Math.hypot(L.x - R.x, L.y - R.y);
+    const cuello = { x: (L.x + R.x) / 2, y: (L.y + R.y) / 2 }, cadera = { x: (LH.x + RH.x) / 2, y: (LH.y + RH.y) / 2 };
+    const torso = Math.hypot(cadera.x - cuello.x, cadera.y - cuello.y);
+    const ang = Math.atan2(L.y - R.y, L.x - R.x);
+    const ancho = hom * c.anchoPrenda, alto = ancho * pr.img.naturalHeight / pr.img.naturalWidth;
+    ctx.save();
+    ctx.translate(cuello.x, cuello.y);
+    ctx.rotate(Math.abs(ang) > Math.PI / 2 ? ang - Math.sign(ang) * Math.PI : ang);
+    ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 30;
+    ctx.drawImage(pr.img, -ancho / 2, -alto * 0.1 - torso * c.subirPrenda, ancho, alto);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// Silueta de persona de frente (cabeza, cuello, brazos y piernas) que "lleva puesta" la prenda.
+// Se dibuja aparte, se desvanece hacia abajo y brilla con la luz del contorno.
+const lienzoCuerpo = document.createElement('canvas');
+function cuerpoSombra(w, h, luz) {
+  const top = -h / 2, cw = Math.ceil(w * 1.3), ch = Math.ceil(h + w * 1.6), ox = cw / 2, oy = w * 0.42;
+  if (lienzoCuerpo.width !== cw || lienzoCuerpo.height !== ch) { lienzoCuerpo.width = cw; lienzoCuerpo.height = ch; }
+  const k = lienzoCuerpo.getContext('2d');
+  k.setTransform(1, 0, 0, 1, 0, 0); k.clearRect(0, 0, cw, ch);
+  k.translate(ox, oy - top);
+  k.fillStyle = k.strokeStyle = '#040404'; k.lineCap = 'round'; k.lineJoin = 'round';
+  // cabeza y cuello
+  k.beginPath(); k.ellipse(0, top - w * 0.17, w * 0.105, w * 0.135, 0, 0, Math.PI * 2); k.fill();
+  k.beginPath(); k.roundRect(-w * 0.07, top - w * 0.08, w * 0.14, h * 0.12, w * 0.04); k.fill();
+  // hombros y torso (debajo de la playera)
+  k.beginPath(); k.moveTo(-w * 0.36, top + h * 0.1); k.quadraticCurveTo(-w * 0.2, top - w * 0.02, 0, top - w * 0.01);
+  k.quadraticCurveTo(w * 0.2, top - w * 0.02, w * 0.36, top + h * 0.1); k.lineTo(w * 0.3, h / 2 + w * 0.35); k.lineTo(-w * 0.3, h / 2 + w * 0.35); k.closePath(); k.fill();
+  // brazos: salen de las mangas y bajan a los lados
+  k.lineWidth = w * 0.115;
+  for (const sg of [-1, 1]) {
+    k.beginPath(); k.moveTo(sg * w * 0.4, top + h * 0.28); k.quadraticCurveTo(sg * w * 0.47, h * 0.15, sg * w * 0.43, h / 2 + w * 0.22); k.stroke();
+    k.beginPath(); k.ellipse(sg * w * 0.43, h / 2 + w * 0.27, w * 0.05, w * 0.07, 0, 0, Math.PI * 2); k.fill();
+  }
+  // piernas
+  k.lineWidth = w * 0.17;
+  for (const sg of [-1, 1]) { k.beginPath(); k.moveTo(sg * w * 0.14, h / 2 + w * 0.3); k.lineTo(sg * w * 0.16, h / 2 + w * 1.15); k.stroke(); }
+  // se desvanece hacia abajo
+  k.setTransform(1, 0, 0, 1, 0, 0);
+  const g = k.createLinearGradient(0, ch * 0.55, 0, ch);
+  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  k.globalCompositeOperation = 'destination-in'; k.fillStyle = g; k.fillRect(0, 0, cw, ch);
+  k.globalCompositeOperation = 'source-over';
+  ctx.save();
+  ctx.shadowColor = luz || '#7c3aed'; ctx.shadowBlur = 50;
+  ctx.drawImage(lienzoCuerpo, -ox, top - oy);
+  ctx.shadowBlur = 16; ctx.drawImage(lienzoCuerpo, -ox, top - oy);
+  ctx.restore();
+}
+
+const DIBUJAR = { sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
 
 function render(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -777,11 +924,12 @@ function sincronizar(t, corre) {
     const fin = isFinite(el.duration) ? el.duration - 0.05 : Infinity;
     if (activo && corre) {
       if (obj >= fin) { if (!el.paused) el.pause(); }
-      else if (el.paused) { el.currentTime = obj; el.play().catch(() => {}); }
+      else if (el.paused) { if (Math.abs(el.currentTime - obj) > 0.12) el.currentTime = obj; el.play().catch(() => {}); }
       else if (Math.abs(el.currentTime - obj) > 0.25) el.currentTime = obj;
     } else {
       if (!el.paused) el.pause();
       if (activo && Math.abs(el.currentTime - Math.min(obj, fin)) > 0.03) el.currentTime = Math.min(obj, fin);
+      else if (!activo && corre && c.ini > t && c.ini - t < 1.5 && Math.abs(el.currentTime - (c.desde || 0)) > 0.05 && !el.seeking) el.currentTime = c.desde || 0;
     }
   }
   for (const [id, e] of elems) if (!vivos.has(id)) { e.el.pause(); elems.delete(id); }
