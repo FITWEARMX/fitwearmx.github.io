@@ -97,6 +97,94 @@
   #progreso div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
   #aviso { color: var(--text-muted); font-size: .85rem; text-align: center; min-height: 1.2em; }
   #aviso a { color: var(--accent); }
+
+  /* ---- marco tipo estudio: barra izquierda, pestañas arriba, caja para pedir el video abajo ---- */
+  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+  .nav { position: sticky; top: 0; height: 100vh; padding: 10px; }
+  .nav > * { }
+  .nav { display: flex; flex-direction: column; gap: 2px; background: transparent; }
+  .nav::before { content: ''; position: absolute; inset: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; z-index: -1; }
+  .nav { z-index: 1; }
+  .marca { font-weight: 800; letter-spacing: .14em; font-size: 1rem; padding: 18px 14px 18px; color: #fff; }
+  .marca span { letter-spacing: 0; font-weight: 600; color: var(--accent-2); margin-left: 4px; }
+  .nav a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; margin: 0 4px; border-radius: 10px; color: var(--text-main); text-decoration: none; font-weight: 500; }
+  .nav a i { font-style: normal; width: 18px; text-align: center; opacity: .8; }
+  .nav a:hover { background: rgba(255,255,255,.05); }
+  .nav a.on { background: rgba(255,255,255,.09); color: #fff; }
+  .nav h4 { margin: 16px 16px 6px; font-size: .78rem; font-weight: 500; color: var(--text-muted); }
+  .nav-pie { margin-top: auto; padding-bottom: 10px; }
+  main { min-width: 0; padding: 0 16px 230px 8px; }
+  .top { display: flex; align-items: center; gap: 12px; padding: 14px 4px; position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .miga { color: var(--text-muted); white-space: nowrap; }
+  .miga span { margin: 0 4px; } .miga b { color: #fff; font-weight: 500; }
+  .tabs { display: flex; gap: 4px; margin: 0 auto; }
+  .tabs button { background: transparent; border: 0; color: var(--text-muted); padding: 7px 12px; }
+  .tabs button.on { background: rgba(255,255,255,.08); color: #fff; }
+  .top .der { display: flex; gap: 6px; }
+  .top .der button { padding: 7px 11px; }
+  .tit { font-size: 1.25rem; font-weight: 600; margin: 8px 4px 16px; }
+  .hero { max-width: 920px; margin: 6vh auto 0; text-align: center; }
+  .atajos { grid-template-columns: repeat(4, 1fr) !important; }
+  .atajos .poster { aspect-ratio: 4 / 5; }
+  .tarjeta .info span { white-space: normal; }
+  .hero h2 { font-size: clamp(1.6rem, 3.4vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; margin: 0 0 10px; color: #fff; }
+  .hero p { color: var(--text-muted); margin: 0 0 28px; line-height: 1.5; }
+  .atajos, .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .tarjeta { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; cursor: pointer; text-align: left; transition: transform .15s, border-color .15s; }
+  .tarjeta:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.2); }
+  .tarjeta .poster { aspect-ratio: 9 / 12; background: #000 center/cover; display: flex; align-items: center; justify-content: center; font-size: 42px; position: relative; }
+  .tarjeta .poster video { width: 100%; height: 100%; object-fit: cover; }
+  .tarjeta .info { padding: 10px 12px 12px; }
+  .tarjeta .info b { display: block; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .tarjeta .info span { color: var(--text-muted); font-size: .82rem; line-height: 1.35; display: block; }
+  .tarjeta .acciones { display: flex; gap: 6px; padding: 0 12px 12px; }
+  .tarjeta .acciones button, .tarjeta .acciones a { flex: 1; text-align: center; font-size: .8rem; padding: 6px; }
+  .tarjeta .acciones a { background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); text-decoration: none; }
+  .composer { position: fixed; left: calc(232px + 50%); transform: translateX(calc(-50% - 116px)); bottom: 16px; width: min(860px, calc(100vw - 280px)); z-index: 20; }
+  .modos { display: inline-flex; gap: 4px; padding: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+  .modos button { background: transparent; border: 0; padding: 6px 11px; color: var(--text-muted); border-radius: 10px; }
+  .modos button.on { background: rgba(255,255,255,.1); color: #fff; }
+  .caja { display: grid; grid-template-columns: auto 1fr; gap: 12px; background: #1a1a1b; border: 1px solid var(--border); border-radius: 18px; padding: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .refs { display: flex; flex-direction: column; gap: 6px; width: 190px; }
+  .prendas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .prendas div { aspect-ratio: 1; border-radius: 8px; background: #262628 center/cover; position: relative; }
+  .prendas div button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; padding: 0; border-radius: 50%; font-size: .65rem; line-height: 1; }
+  .agregar-ref { background: #232325; font-size: .82rem; }
+  .escribe { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .escribe textarea { background: transparent; border: 0; color: #fff; font: inherit; font-size: .95rem; resize: none; outline: none; min-height: 48px; }
+  .escribe textarea::placeholder { color: rgba(255,255,255,.35); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chips select, .chip-f { background: #232325; color: var(--text-main); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .82rem; }
+  .chips .generar { margin-left: auto; padding: 9px 18px; border-radius: 12px; }
+  .estado-gen { text-align: center; color: var(--text-muted); font-size: .85rem; min-height: 1.2em; margin-top: 6px; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal[hidden] { display: none; }
+  .modal-caja { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; width: min(980px, 100%); max-height: 86vh; display: flex; flex-direction: column; overflow: hidden; }
+  .modal-top { display: flex; gap: 10px; align-items: center; padding: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .modal-top input { flex: 1; min-width: 180px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font: inherit; }
+  .rejilla-prod { overflow: auto; padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .prod { background: var(--bg-card-2); border: 2px solid transparent; border-radius: 12px; overflow: hidden; cursor: pointer; font-size: .78rem; }
+  .prod.sel { border-color: var(--accent); }
+  .prod .ft { aspect-ratio: 1; background: #ddd center/cover; }
+  .prod div:last-child { padding: 6px 8px; }
+  .prod b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .prod span { color: var(--text-muted); }
+  #v-editor .zona { margin-top: 4px; }
+  body.en-editor .composer { display: none; }
+  body.en-editor main { padding-bottom: 30px; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .nav { position: fixed; bottom: 0; top: auto; left: 0; right: 0; height: auto; flex-direction: row; overflow-x: auto; padding: 6px; background: var(--bg-card); border-top: 1px solid var(--border); z-index: 40; }
+    .nav::before, .nav h4, .marca, .nav-pie { display: none; }
+    .nav a { flex-direction: column; gap: 2px; font-size: .7rem; padding: 6px 8px; white-space: nowrap; }
+    main { padding: 0 12px 300px; }
+    .top { flex-wrap: wrap; } .tabs { margin: 0; order: 3; width: 100%; overflow-x: auto; }
+    .composer { left: 8px; right: 8px; transform: none; width: auto; bottom: 64px; }
+    .atajos { grid-template-columns: repeat(2, 1fr) !important; }
+    .caja { grid-template-columns: 1fr; } .refs { width: auto; flex-direction: row; align-items: center; } .prendas { flex: 1; }
+    body.en-editor main { padding-bottom: 90px; }
+  }
+  @media (max-width: 1200px) { .lado { grid-template-columns: 1fr; } }
   @media (max-width: 860px) {
     .zona { grid-template-columns: 1fr; }
     .lado { grid-template-columns: 1fr; }
@@ -105,19 +193,59 @@
 </style>
 </head>
 <body>
-<div class="page">
-  <header>
-    <h1>FITWEARMX <b>Studio</b></h1>
-    <a href="./">← Editor normal</a>
-    <div class="der">
-      <button id="bPlantilla" type="button">✨ Plantilla "Cómo comprar"</button>
-      <button id="bNuevo" type="button">Nuevo</button>
-      <button id="bAbrir" type="button">📂 Abrir</button>
-      <button id="bGuardar" type="button">💾 Guardar</button>
-      <button id="bExportar" class="pri" type="button">⬇️ Exportar MP4</button>
+<div class="app">
+  <aside class="nav">
+    <div class="marca">FITWEARMX <span>Studio</span></div>
+    <a href="#" data-vista="crear" class="on"><i>⌂</i> Inicio</a>
+    <a href="#" data-vista="plantillas"><i>▣</i> Plantillas</a>
+    <a href="#" data-vista="creaciones"><i>◫</i> Mis creaciones</a>
+    <h4>Herramientas</h4>
+    <a href="#" data-vista="editor"><i>✂︎</i> Editor</a>
+    <a href="#" data-herr="producto"><i>👕</i> Prenda en negro</a>
+    <a href="#" data-herr="celular"><i>📱</i> Celular</a>
+    <a href="#" data-herr="texto"><i>𝐀</i> Texto</a>
+    <a href="#" data-herr="ritmo"><i>♫</i> Música</a>
+    <a href="#" data-herr="voz"><i>🎙</i> Voz</a>
+    <div class="nav-pie"><a href="./"><i>←</i> Editor clásico</a></div>
+  </aside>
+  <main>
+    <div class="top">
+      <div class="miga">Herramientas <span>›</span> <b id="miga">Inicio</b></div>
+      <nav class="tabs">
+        <button type="button" data-vista="crear" class="on">✦ Crear</button>
+        <button type="button" data-vista="creaciones">◫ Creaciones</button>
+        <button type="button" data-vista="editor">✂︎ Editor</button>
+        <button type="button" data-vista="plantillas">▣ Plantillas</button>
+      </nav>
+      <div class="der">
+        <button id="bPlantilla" type="button" title="Plantilla vacía de Cómo comprar">Plantilla</button>
+        <button id="bNuevo" type="button">Nuevo</button>
+        <button id="bAbrir" type="button">Abrir</button>
+        <button id="bGuardar" type="button">Guardar</button>
+        <button id="bExportar" class="pri" type="button">Exportar MP4</button>
+      </div>
     </div>
-  </header>
 
+    <section class="vista-p" id="v-crear">
+      <div class="hero">
+        <h2>¿Qué video hacemos hoy?</h2>
+        <p>Elige tus prendas de la tienda, escribe lo que quieres y el Studio arma el comercial solo. Luego lo ajustas en el Editor.</p>
+        <div class="atajos" id="atajos"></div>
+      </div>
+    </section>
+
+    <section class="vista-p" id="v-plantillas" hidden>
+      <h2 class="tit">Plantillas</h2>
+      <div class="rejilla" id="rejillaPlantillas"></div>
+    </section>
+
+    <section class="vista-p" id="v-creaciones" hidden>
+      <h2 class="tit">Mis creaciones</h2>
+      <p class="vacio" id="creacionesVacio">Aquí se guardan los videos que exportes (sólo en este aparato).</p>
+      <div class="rejilla" id="rejillaCreaciones"></div>
+    </section>
+
+    <section class="vista-p" id="v-editor" hidden>
   <div class="zona">
     <div class="card vista">
       <canvas id="lienzo" width="1080" height="1920"></canvas>
@@ -167,6 +295,41 @@
       <div class="tl-nombres" id="tlNombres"></div>
       <div class="tl-scroll" id="tlScroll"><div class="tl-area" id="tlArea"></div></div>
     </div>
+  </div>
+
+    </section>
+
+    <div class="composer" id="composer">
+      <div class="modos" id="modos"></div>
+      <div class="caja">
+        <div class="refs">
+          <div class="prendas" id="prendasSel"></div>
+          <button type="button" class="agregar-ref" id="bElegir">＋ Agregar prendas</button>
+        </div>
+        <div class="escribe">
+          <textarea id="prompt" rows="2" placeholder="Describe tu video. Ej.: drop de Darc Sport, 15 segundos, enseña cómo comprar"></textarea>
+          <div class="chips">
+            <span class="chip-f">▮ 9:16 · 1080p</span>
+            <select id="cDur" title="Duración"><option value="auto">Auto</option><option value="10">10 s</option><option value="15">15 s</option><option value="20">20 s</option><option value="30">30 s</option></select>
+            <select id="cFondo" title="Quitar el fondo de las prendas"><option value="si">Fondo negro: Sí</option><option value="no">Fondo negro: No</option></select>
+            <select id="cRitmo" title="Música"><option value="si">Ritmo: Encendido</option><option value="no">Ritmo: Apagado</option></select>
+            <button type="button" class="pri generar" id="bGenerar">Generar ✦</button>
+          </div>
+        </div>
+      </div>
+      <div id="estadoGen" class="estado-gen"></div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modalProd" hidden>
+  <div class="modal-caja">
+    <div class="modal-top">
+      <b>Elige hasta 4 prendas de tu tienda</b>
+      <input id="buscaProd" type="search" placeholder="Buscar: Cherub, Wolves, YoungLA…">
+      <button type="button" id="bCerrarModal">Listo</button>
+    </div>
+    <div class="rejilla-prod" id="rejillaProd"><p class="vacio">Cargando tu tienda…</p></div>
   </div>
 </div>
 
@@ -628,7 +791,10 @@ function sincronizar(t, corre) {
 function reloj() {
   $('reloj').textContent = fmt(tAct) + ' / ' + fmt(duracion());
   $('cabezalTL') && ($('cabezalTL').style.left = (tAct * pps) + 'px');
-  if (exportando) $('progreso').firstElementChild.style.width = (tAct / duracion() * 100) + '%';
+  if (exportando) {
+    $('progreso').firstElementChild.style.width = (tAct / duracion() * 100) + '%';
+    if (!posterExp && tAct > duracion() * 0.3) posterExp = miniatura();
+  }
 }
 function irA(t) {
   tAct = clamp(t, 0, duracion());
@@ -680,12 +846,14 @@ async function exportar() {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = nom;
     a.textContent = '⬇️ ' + nom + ' (' + (blob.size / 1048576).toFixed(1) + ' MB)';
-    $('aviso').innerHTML = '✅ Listo. '; $('aviso').appendChild(a);
+    $('aviso').innerHTML = '✅ Listo. También quedó en Mis creaciones. '; $('aviso').appendChild(a);
+    guardarCreacion(blob, nom);
     a.click();
     $('progreso').style.display = 'none';
     $('bExportar').disabled = false;
   };
-  exportando = true; $('bExportar').disabled = true;
+  exportando = true; posterExp = null; $('bExportar').disabled = true;
+  verVista('editor');
   $('progreso').style.display = 'block';
   $('aviso').textContent = 'Exportando en tiempo real… no cambies de pestaña ni minimices la ventana.';
   grabadora.start(500);
@@ -1142,6 +1310,315 @@ window.Comercial = {
     return agregarArchivo(new File([blob], n, { type: blob.type }), n);
   },
 };
+
+// ---------- estudio: vistas ----------
+const VISTAS = { crear: 'Inicio', plantillas: 'Plantillas', creaciones: 'Mis creaciones', editor: 'Editor' };
+function verVista(v) {
+  if (!VISTAS[v]) v = 'crear';
+  for (const k in VISTAS) $('v-' + k).hidden = k !== v;
+  document.querySelectorAll('[data-vista]').forEach(b => b.classList.toggle('on', b.dataset.vista === v));
+  $('miga').textContent = VISTAS[v];
+  document.body.classList.toggle('en-editor', v === 'editor');
+  if (v === 'editor') { pintarTL(); irA(tAct); }
+  if (v === 'creaciones') pintarCreaciones();
+  try { localStorage.setItem('studio-vista', v); } catch (e) {}
+}
+document.querySelectorAll('[data-vista]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); verVista(b.dataset.vista); }));
+document.querySelectorAll('[data-herr]').forEach(b => b.addEventListener('click', e => {
+  e.preventDefault();
+  const h = b.dataset.herr;
+  verVista('editor');
+  if (h === 'ritmo') { audioListo(); ritmoAlProyecto(120); }
+  else if (h === 'voz') $('bGrabar').click();
+  else agregar(h);
+}));
+
+// ---------- plantillas (modos de video) ----------
+const MODOS = {
+  comprar: { nombre: 'Cómo comprar', icono: '▶', fondo: '#17111f', desc: 'Prendas en negro, la compra paso a paso dentro del iPhone y el pedido por WhatsApp.' },
+  drop: { nombre: 'Drop nuevo', icono: '✦', fondo: '#0f1424', desc: 'Tus prendas una por una con su nombre y "Ordena con $".' },
+  negro: { nombre: 'Prenda en negro', icono: '■', fondo: '#121212', desc: 'Una sola prenda protagonista, estilo Breathe Divinity.' },
+  remate: { nombre: 'Remate', icono: '🔥', fondo: '#1f0d0d', desc: 'Urgencia: "Remate.", tus prendas y sus precios.' },
+};
+let modo = 'comprar';
+function elegirModo(m) {
+  modo = m;
+  document.querySelectorAll('#modos button').forEach(b => b.classList.toggle('on', b.dataset.modo === m));
+}
+function tarjetaModo(k) {
+  const M = MODOS[k], d = document.createElement('button');
+  d.type = 'button'; d.className = 'tarjeta';
+  d.innerHTML = `<div class="poster" style="background:radial-gradient(circle at 50% 40%, ${M.fondo === '#121212' ? '#3a3a3a' : M.fondo.replace('#1', '#4')}, #000 70%)">${M.icono}</div><div class="info"><b></b><span></span></div>`;
+  d.querySelector('b').textContent = M.nombre; d.querySelector('span').textContent = M.desc;
+  d.onclick = () => { elegirModo(k); verVista('crear'); $('prompt').focus(); };
+  return d;
+}
+for (const k in MODOS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.modo = k; b.textContent = MODOS[k].icono + ' ' + MODOS[k].nombre;
+  b.onclick = () => elegirModo(k);
+  $('modos').append(b);
+  $('atajos').append(tarjetaModo(k));
+  $('rejillaPlantillas').append(tarjetaModo(k));
+}
+elegirModo('comprar');
+
+// ---------- prendas de la tienda ----------
+let tienda = null, prendasSel = [];
+async function cargarTienda() {
+  if (tienda) return tienda;
+  for (const base of ['../tienda/', 'https://fitwearmx.github.io/tienda/']) {
+    try {
+      const r = await fetch(base + 'datos.json', { cache: 'no-store' });
+      if (r.ok) { const d = await r.json(); tienda = { base, productos: (d.productos || []).filter(p => p.colores && p.colores[0] && p.colores[0].fotos && p.colores[0].fotos[0]) }; return tienda; }
+    } catch (e) {}
+  }
+  throw new Error('No pude leer la tienda. Revisa tu internet.');
+}
+const fotoDe = p => tienda.base + p.colores[0].fotos[0];
+const anticipoDe = precio => Math.ceil(precio * 0.25 / 10) * 10;
+const prendaDe = id => tienda && tienda.productos.find(p => p.id === id);
+function nombreCorto(p) {
+  const n = p.nombre.replace(/\b(premium|tee|tees|t-shirt|shirt|in|black|white|cream|brown|green|grey|gray|blue|red)\b/gi, '').replace(/[-–]/g, ' ').replace(/\s+/g, ' ').trim();
+  return (n.split(' ').slice(0, 3).join(' ') || p.nombre) + '.';
+}
+async function abrirPrendas() {
+  $('modalProd').hidden = false;
+  $('buscaProd').focus();
+  try { await cargarTienda(); pintarProd(); }
+  catch (e) { $('rejillaProd').innerHTML = '<p class="vacio">No pude abrir tu tienda. Revisa tu internet.</p>'; }
+}
+function pintarProd() {
+  const q = $('buscaProd').value.trim().toLowerCase();
+  const lista = tienda.productos.filter(p => !q || (p.nombre + ' ' + p.marca + ' ' + p.categoria).toLowerCase().includes(q)).slice(0, 150);
+  $('rejillaProd').innerHTML = '';
+  for (const p of lista) {
+    const d = document.createElement('div');
+    d.className = 'prod' + (prendasSel.includes(p.id) ? ' sel' : '');
+    d.innerHTML = `<div class="ft"></div><div><b></b><span></span></div>`;
+    d.querySelector('.ft').style.backgroundImage = `url("${fotoDe(p)}")`;
+    d.querySelector('b').textContent = p.nombre;
+    d.querySelector('span').textContent = p.marca + ' · $' + p.precio.toLocaleString('es-MX');
+    d.onclick = () => {
+      const i = prendasSel.indexOf(p.id);
+      if (i >= 0) prendasSel.splice(i, 1); else if (prendasSel.length < 4) prendasSel.push(p.id);
+      pintarProd(); pintarSel();
+    };
+    $('rejillaProd').append(d);
+  }
+  if (!lista.length) $('rejillaProd').innerHTML = '<p class="vacio">No encontré esa prenda.</p>';
+}
+function pintarSel() {
+  $('prendasSel').innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const d = document.createElement('div'), p = prendaDe(prendasSel[i]);
+    if (p) {
+      d.style.backgroundImage = `url("${fotoDe(p)}")`; d.title = p.nombre;
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕';
+      x.onclick = () => { prendasSel.splice(prendasSel.indexOf(p.id), 1); pintarSel(); };
+      d.append(x);
+    }
+    $('prendasSel').append(d);
+  }
+  $('bElegir').textContent = prendasSel.length ? '✎ Cambiar prendas' : '＋ Agregar prendas';
+}
+$('bElegir').onclick = abrirPrendas;
+$('bCerrarModal').onclick = () => { $('modalProd').hidden = true; };
+$('modalProd').onclick = e => { if (e.target === $('modalProd')) $('modalProd').hidden = true; };
+$('buscaProd').oninput = () => tienda && pintarProd();
+pintarSel();
+
+// ---------- generar el video solo ----------
+let quitaFondo = null;
+async function fotoPrenda(p, quitar) {
+  const nombre = 'prenda-' + p.id + (quitar ? '-negro.png' : '.jpg');
+  if (medios[nombre]) return nombre;
+  let blob = await (await fetch(fotoDe(p))).blob();
+  if (quitar) {
+    try {
+      if (!quitaFondo) quitaFondo = (await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm')).removeBackground;
+      blob = await quitaFondo(blob, {
+        output: { format: 'image/png', quality: 1 },
+        progress: (clave, a, t) => { if (clave.startsWith('fetch') && t) estado(`Descargando la IA para quitar fondos (sólo la primera vez)… ${Math.round(100 * a / t)}%`); },
+      });
+    } catch (e) { console.warn('sin quitar fondo', e); }
+  }
+  return agregarArchivo(new File([blob], nombre, { type: blob.type }), nombre);
+}
+function leerPedido(txt) {
+  const t = txt.toLowerCase(), o = {};
+  const m = t.match(/(\d{1,2})\s*(s\b|seg)/);
+  if (m) o.dur = +m[1];
+  if (/c[oó]mo (comprar|pedir|ordenar)|paso a paso|tutorial|compra/.test(t)) o.modo = 'comprar';
+  else if (/remate|liquida|oferta|descuento/.test(t)) o.modo = 'remate';
+  else if (/una (sola )?prenda|protagonista|breathe|negro/.test(t)) o.modo = 'negro';
+  else if (/drop|nuev|lleg/.test(t)) o.modo = 'drop';
+  o.marca = ['YoungLA', 'Gymshark', 'Darc Sport', 'Controlled Insanity', 'DFYNE'].find(x => t.includes(x.toLowerCase().split(' ')[0]));
+  o.cat = [['playera', 'Playeras'], ['hoodie', 'Hoodies'], ['sudadera', 'Hoodies'], ['pants', 'Pants'], ['short', 'Shorts'], ['chamarra', 'Chamarras']].find(([k]) => t.includes(k));
+  if (o.cat) o.cat = o.cat[1];
+  return o;
+}
+const estado = txt => { $('estadoGen').textContent = txt; };
+const LUCES = ['#7c3aed', '#a1a1aa', '#3b82f6', '#ef4444'];
+const PANTALLAS = [
+  { src: 'pantalla-1.jpg', texto: 'Búscala.', toque: [0.82, 0.064, 1.3] },
+  { src: 'pantalla-2.jpg', texto: 'Elígela.', toque: [0.26, 0.29, 1.2] },
+  { src: 'pantalla-3.jpg', texto: 'Ordena con anticipo.', linea: true, zoom: [1.15, 0.75] },
+  { src: 'pantalla-4.jpg', texto: 'Tu talla.', toque: [0.5, 0.96, 1.3] },
+  { src: 'pantalla-5.jpg', texto: 'A tu bolsa.' },
+  { src: 'pantalla-6.jpg', texto: 'Pídela por WhatsApp.', toque: [0.5, 0.93, -0.6], zoom: [1.12, 0.85] },
+];
+function armar(m, prods, fotos, dur) {
+  const C = [], tx = (ini, d, texto, x = {}) => C.push({ tipo: 'texto', pista: 'T1', ini: r1(ini), dur: r1(d), texto, ...x });
+  const pr = (ini, d, i, x = {}) => C.push({ tipo: 'producto', pista: 'V2', ini: r1(ini), dur: r1(d), src: fotos[i], luz: LUCES[i % 4], ...x });
+  const cierre = (T, p) => {
+    C.push({ tipo: 'boton', pista: 'FX', ini: T, dur: 2.4, y: 960 });
+    C.push({ tipo: 'notificacion', pista: 'FX', ini: r1(T + 0.7), dur: 2.4, titulo: 'Tu pedido llegó 📦', cuerpo: p.nombre });
+    tx(T + 0.2, 2.2, 'Te llega a tu puerta.', { tam: 100, y: 1500 });
+    C.push({ tipo: 'logo', pista: 'FX', ini: T + 2.4, dur: 3 });
+    return T + 5.4;
+  };
+  const logo = T => { C.push({ tipo: 'logo', pista: 'FX', ini: T, dur: 3 }); return T + 3; };
+  let T = 0, n = prods.length;
+  if (m === 'comprar') {
+    const d = dur || 28;
+    const usa = d <= 12 ? [2, 5] : d <= 16 ? [0, 2, 3, 5] : d <= 22 ? [0, 1, 2, 3, 5] : [0, 1, 2, 3, 4, 5];
+    n = Math.min(n, d <= 12 ? 1 : d <= 16 ? 2 : d <= 22 ? 3 : 4);
+    const pt = d <= 16 ? 1.6 : 2, st = d <= 16 ? 1.7 : 2;
+    for (let i = 0; i < n; i++) { pr(T, pt, i); tx(T + 0.3, pt - 0.3, nombreCorto(prods[i]), { tam: 96, y: 1600 }); T += pt; }
+    tx(0.3, T - 0.3, 'Ya en la tienda', { tam: 46, peso: 600, y: 230, color: '#a1a1aa' });
+    tx(T, 1.6, '¿Cómo la pides?', { tam: 130, y: 960 }); T += 1.6;
+    usa.forEach((k, j) => {
+      const S = PANTALLAS[k], dd = j === usa.length - 1 ? st + 0.6 : st;
+      const c = { tipo: 'celular', pista: 'V2', ini: r1(T), dur: dd, src: S.src, y: 140, entrada: j ? 'nada' : 'subir', fadeOut: j === usa.length - 1 ? 0.25 : 0 };
+      if (S.toque) Object.assign(c, { toque: 'si', toqueX: S.toque[0], toqueY: S.toque[1], toqueT: S.toque[2] < 0 ? dd + S.toque[2] : Math.min(S.toque[2], dd - 0.5) });
+      if (S.zoom) Object.assign(c, { zoomFin: S.zoom[0], focoY: S.zoom[1] });
+      C.push(c);
+      tx(r1(T + 0.2), dd - 0.2, S.texto, { tam: S.texto.length > 14 ? 95 : 120, y: 230, linea: S.linea ? 'si' : 'no', colorLinea: '#22c55e' });
+      T += dd;
+    });
+    T = cierre(r1(T), prods[0]);
+  } else if (m === 'drop' || m === 'remate') {
+    const rem = m === 'remate';
+    tx(0, 1.6, rem ? 'Remate.' : 'Drop nuevo.', { tam: 200, y: 960, color: rem ? '#ef4444' : '#ffffff', brillo: rem ? '#ef4444' : '' });
+    T = 1.6;
+    const pt = dur ? clamp((dur - 1.6 - 3) / n, 1.2, 4) : 2.4;
+    prods.forEach((p, i) => {
+      pr(r1(T), pt, i, { luz: rem ? '#ef4444' : LUCES[i % 4] });
+      tx(r1(T + 0.2), pt - 0.2, p.marca.toUpperCase(), { tam: 44, peso: 600, y: 230, color: '#a1a1aa' });
+      tx(r1(T + 0.3), pt - 0.3, nombreCorto(p), { tam: 92, y: 1560 });
+      tx(r1(T + 0.6), pt - 0.6, rem ? '$' + p.precio.toLocaleString('es-MX') : 'Ordena con $' + anticipoDe(p.precio), { tam: 60, peso: 700, y: 1700, color: rem ? '#f87171' : '#22c55e' });
+      T += pt;
+    });
+    if (rem) { tx(r1(T), 1.4, 'Últimas piezas.', { tam: 130, y: 960 }); T += 1.4; }
+    T = logo(r1(T));
+  } else {
+    const p = prods[0], d = dur || 9, pd = Math.max(3, d - 3);
+    pr(0, pd, 0, { entrada: 'zoom', zoomFin: 1.12 });
+    tx(0.4, pd - 0.4, p.marca.toUpperCase(), { tam: 44, peso: 600, y: 230, color: '#a1a1aa' });
+    tx(1.0, pd - 1.0, nombreCorto(p), { tam: 110, y: 1560 });
+    tx(Math.min(2.2, pd - 1), pd - Math.min(2.2, pd - 1), 'Ordena con $' + anticipoDe(p.precio) + '.', { tam: 64, peso: 700, y: 1710, color: '#22c55e', linea: 'si', colorLinea: '#22c55e' });
+    T = logo(pd);
+  }
+  C.unshift({ tipo: 'fondo', pista: 'V1', ini: 0, dur: r1(T), color1: MODOS[m].fondo, color2: '#000000' });
+  C.push({ tipo: 'musica', pista: 'A1', ini: 0, dur: r1(T), volumen: 0.8, fadeOut: 2 });
+  return C;
+}
+async function generar() {
+  const b = $('bGenerar');
+  if (b.disabled) return;
+  b.disabled = true;
+  try {
+    const pedido = leerPedido($('prompt').value);
+    if (pedido.modo) elegirModo(pedido.modo);
+    estado('Leyendo tu tienda…');
+    await cargarTienda();
+    let prods = prendasSel.map(prendaDe).filter(Boolean);
+    if (!prods.length) {
+      let c = tienda.productos.filter(p => (!pedido.marca || p.marca === pedido.marca) && (p.categoria === (pedido.cat || 'Playeras')));
+      if (!c.length) c = tienda.productos.filter(p => !pedido.marca || p.marca === pedido.marca);
+      if (!c.length) c = tienda.productos;
+      // una de cada diseño (sin repetir colores del mismo modelo)
+      const vistos = new Set();
+      prods = c.filter(p => { const k = p.nombre.split(' ').slice(0, 2).join(' '); if (vistos.has(k)) return false; vistos.add(k); return true; });
+    }
+    prods = prods.slice(0, modo === 'negro' ? 1 : 4);
+    const dur = +$('cDur').value || pedido.dur || null;
+    const quitar = $('cFondo').value === 'si';
+    const fotos = [];
+    for (let i = 0; i < prods.length; i++) {
+      estado(`${quitar ? 'Poniendo en negro' : 'Cargando'} la prenda ${i + 1} de ${prods.length}…`);
+      fotos.push(await fotoPrenda(prods[i], quitar));
+    }
+    if (modo === 'comprar') {
+      estado('Preparando el celular…');
+      for (const S of PANTALLAS) if (!medios[S.src]) {
+        const bl = await (await fetch('pantallas/' + S.src)).blob();
+        await agregarArchivo(new File([bl], S.src, { type: 'image/jpeg' }), S.src);
+      }
+    }
+    guardarHist();
+    cargar({ clips: armar(modo, prods, fotos, dur) });
+    if ($('cRitmo').value === 'si') { estado('Componiendo el ritmo…'); audioListo(); await ritmoAlProyecto(120); }
+    estado('');
+    verVista('editor');
+    $('aviso').textContent = '✦ Listo: dale ▶ Ver. Puedes mover cualquier bloque o tocarlo para cambiarlo.';
+  } catch (e) {
+    estado('😕 ' + e.message);
+  } finally { b.disabled = false; }
+}
+$('bGenerar').onclick = generar;
+$('prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) generar(); });
+
+// ---------- mis creaciones (se guardan en este aparato) ----------
+let posterExp = null;
+function miniatura() {
+  const m = document.createElement('canvas'); m.width = 270; m.height = 480;
+  m.getContext('2d').drawImage(lienzo, 0, 0, 270, 480);
+  return m.toDataURL('image/jpeg', 0.7);
+}
+function abrirDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('fitwearmx-studio', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('creaciones', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function guardarCreacion(blob, nombre) {
+  try {
+    const d = await abrirDB();
+    await new Promise((res, rej) => {
+      const tx = d.transaction('creaciones', 'readwrite');
+      tx.objectStore('creaciones').put({ id: Date.now(), nombre, fecha: new Date().toISOString(), blob, poster: posterExp, dur: duracion(), modo: MODOS[modo].nombre });
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) { console.warn('no se guardó en creaciones', e); }
+}
+async function pintarCreaciones() {
+  let lista = [];
+  try {
+    const d = await abrirDB();
+    lista = await new Promise(res => { const r = d.transaction('creaciones').objectStore('creaciones').getAll(); r.onsuccess = () => res(r.result.reverse()); r.onerror = () => res([]); });
+  } catch (e) {}
+  $('creacionesVacio').hidden = lista.length > 0;
+  $('rejillaCreaciones').innerHTML = '';
+  for (const c of lista) {
+    const url = URL.createObjectURL(c.blob), d = document.createElement('div');
+    d.className = 'tarjeta';
+    d.innerHTML = `<div class="poster"><video muted playsinline loop preload="none"></video></div><div class="info"><b></b><span></span></div><div class="acciones"><a>Descargar</a><button type="button">Borrar</button></div>`;
+    const v = d.querySelector('video');
+    v.src = url; if (c.poster) v.poster = c.poster;
+    d.querySelector('.poster').onclick = () => v.paused ? v.play() : v.pause();
+    d.querySelector('b').textContent = c.modo || 'Video';
+    d.querySelector('span').textContent = new Date(c.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) + ' · ' + Math.round(c.dur || 0) + ' s';
+    const a = d.querySelector('a'); a.href = url; a.download = c.nombre;
+    d.querySelector('button').onclick = async () => {
+      if (!confirm('¿Borrar este video de tus creaciones?')) return;
+      const db = await abrirDB(); db.transaction('creaciones', 'readwrite').objectStore('creaciones').delete(c.id).onsuccess = pintarCreaciones;
+    };
+    $('rejillaCreaciones').append(d);
+  }
+}
 
 // arranque
 try {
