@@ -286,7 +286,7 @@
       <button type="button" data-agregar="puerta">🚪 Caja en la puerta</button>
       <button type="button" data-agregar="explica">🪧 Tarjeta</button>
       <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select> <input id="colTono" type="color" value="#8b5cf6" title="Color de la luz"></label>
-      <label style="margin-left:0">Calidad <select id="selCalidad"><option value="1080">1080p</option><option value="4k">4K</option></select></label>
+      <label style="margin-left:0">Calidad <select id="selCalidad"><option value="1080">1080p</option><option value="4k">4K</option></select> <select id="selFps" title="Cuadros por segundo"><option value="30">30 fps</option><option value="60">60 fps (más fluido)</option></select></label>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
       <button type="button" data-agregar="boton">🟢 Botón</button>
@@ -1415,7 +1415,7 @@ async function mezclarAudio(dur, sr) {
 async function exportarCuadros() {
   const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
   if (tocando) pausa();
-  const fps = 30, dur = duracion(), n = Math.ceil(dur * fps), sr = 48000;
+  const fps = P.fps === 60 ? 60 : 30, dur = duracion(), n = Math.ceil(dur * fps), sr = 48000;
   const E = tamCalidad();
   const cfgV = { codec: E > 1 ? 'avc1.640033' : 'avc1.640028', width: W * E, height: H * E, bitrate: E > 1 ? 45e6 : 20e6, framerate: fps };
   if (!(await VideoEncoder.isConfigSupported(cfgV)).supported) cfgV.codec = 'avc1.4d0028';
@@ -1932,6 +1932,7 @@ $('fMedios').onchange = async e => {
 document.querySelectorAll('[data-agregar]').forEach(b => b.onclick = () => agregar(b.dataset.agregar));
 $('selLook').onchange = e => { guardarHist(); P.look = e.target.value; cambio(); };
 $('selCalidad').onchange = e => { P.calidad = e.target.value; render(tAct); autoguardar(); };
+$('selFps').onchange = e => { P.fps = +e.target.value; autoguardar(); };
 $('colTono').oninput = e => { P.tono = e.target.value; render(tAct); autoguardar(); };
 $('zoomTL').oninput = e => { pps = +e.target.value; pintarTL(); };
 document.addEventListener('keydown', e => {
