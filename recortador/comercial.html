@@ -280,6 +280,10 @@
       <button type="button" data-agregar="celular">📱 Celular</button>
       <button type="button" data-agregar="producto">👕 Prenda</button>
       <button type="button" data-agregar="sombra">👤 Sombra</button>
+      <button type="button" data-agregar="mapa">🗺 Mapa</button>
+      <button type="button" data-agregar="caja">📦 Caja 3D</button>
+      <button type="button" data-agregar="marcas">🏷 Marcas</button>
+      <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select></label>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
       <button type="button" data-agregar="boton">🟢 Botón</button>
@@ -404,6 +408,19 @@ const TIPOS = {
   boton: { nombre: 'Botón', icono: '🟢', pista: 'FX', dur: 2.6,
     def: { texto: 'Pedir por WhatsApp', textoFin: 'Pedido enviado ✓', color: '#25D366', y: 1640 },
     campos: [['texto', 'Texto', 'texto'], ['textoFin', 'Al final dice', 'texto'], ['color', 'Color', 'color'], ['y', 'Altura', 'rango', 100, 1800, 1]] },
+  mapa: { nombre: 'Mapa con ruta', icono: '🗺', pista: 'V2', dur: 3.5,
+    def: { origen: 'USA 🇺🇸', destino: 'Monterrey 🇲🇽', color: '#fbbf24', titulo: 'Llega en 2 a 3 semanas', sub: 'En camino a Monterrey',
+      pasos: 'Ordenado,En USA,En camino,Entregado', fadeIn: 0.2, fadeOut: 0.2 },
+    campos: [['origen', 'Sale de', 'texto'], ['destino', 'Llega a', 'texto'], ['color', 'Color de la ruta', 'color'],
+      ['titulo', 'Tarjeta: título', 'texto'], ['sub', 'Tarjeta: abajo', 'texto'], ['pasos', 'Pasos (con comas)', 'texto'], ...FADES] },
+  marcas: { nombre: 'Marcas', icono: '🏷', pista: 'FX', dur: 3,
+    def: { logos: '', columnas: 2, tam: 1, y: 960, color: '#ffffff', fadeIn: 0, fadeOut: 0.2 },
+    campos: [['logos', 'Logos (nombres de archivo con comas)', 'area'], ['columnas', 'Columnas', 'rango', 1, 4, 1],
+      ['tam', 'Tamaño', 'rango', 0.5, 1.6, 0.01], ['y', 'Altura', 'rango', 300, 1600, 1], ['color', 'Brillo', 'color'], ...FADES] },
+  caja: { nombre: 'Caja 3D', icono: '📦', pista: 'V2', dur: 2.5,
+    def: { src: '', color: '#141416', brillo: '#a855f7', tam: 1, y: 1000, fadeIn: 0.15, fadeOut: 0.2 },
+    campos: [['src', 'Logo en la caja', 'medio', 'imagen'], ['color', 'Color de la caja', 'color'], ['brillo', 'Anillo de luz', 'color'],
+      ['tam', 'Tamaño', 'rango', 0.5, 1.6, 0.01], ['y', 'Altura', 'rango', 400, 1600, 1], ...FADES] },
   logo: { nombre: 'Logo', icono: '✴️', pista: 'FX', dur: 3,
     def: { src: '', texto: 'FITWEARMX', sub: 'fitwearmx.github.io/tienda', color: '#a855f7', tam: 150, y: 900, fadeIn: 0, fadeOut: 0 },
     campos: [['src', 'Logo en imagen', 'medio', 'imagen'], ['texto', 'Logo (letras)', 'texto'], ['sub', 'Abajo dice', 'texto'], ['color', 'Brillo', 'color'], ['tam', 'Tamaño', 'rango', 60, 260, 1],
@@ -905,7 +922,207 @@ function cuerpoSombra(w, h, luz) {
   ctx.restore();
 }
 
-const DIBUJAR = { sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
+// Mapa 3D nocturno estilo comercial de Amazon: edificios con volumen, calles azules que brillan,
+// ruta dorada que avanza con la cámara siguiéndola, pin y tarjeta de seguimiento.
+const EDIFICIOS = (() => {
+  const out = []; let r = 7;
+  const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+  for (let cx = -7; cx < 7; cx++) for (let cz = 0; cz < 16; cz++) {
+    const n = 1 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const x0 = cx + 0.12 + rnd() * 0.35, z0 = cz + 0.12 + rnd() * 0.35;
+      out.push({ x0, z0, x1: Math.min(cx + 0.88, x0 + 0.2 + rnd() * 0.45), z1: Math.min(cz + 0.88, z0 + 0.2 + rnd() * 0.45), h: 0.06 + rnd() * rnd() * 0.55 });
+    }
+  }
+  return out.sort((a, b) => b.z0 - a.z0);
+})();
+function dibMapa(c, lt) {
+  const a = alfa(c, lt);
+  const ruta = [[-2, 1.5], [-2, 4], [0, 4], [0, 7], [2, 7], [2, 10]];
+  const lens = ruta.slice(1).map((p, i) => Math.hypot(p[0] - ruta[i][0], p[1] - ruta[i][1])), total = lens.reduce((x, y) => x + y, 0);
+  const prog = eInOut(clamp((lt - 0.25) / (c.dur * 0.7)));
+  let falta = total * prog;
+  const pts = [ruta[0]];
+  for (let i = 1; i < ruta.length && falta > 0; i++) {
+    const k = Math.min(1, falta / lens[i - 1]), [x0, z0] = ruta[i - 1], [x1, z1] = ruta[i];
+    pts.push([x0 + (x1 - x0) * k, z0 + (z1 - z0) * k]); falta -= lens[i - 1];
+  }
+  const [hx, hz] = pts[pts.length - 1];
+  // la cámara sigue la punta de la ruta, suave
+  const camX = hx * 0.7, camZ = hz - 3.4, F = 820, camH = 3.3, hor = 380;
+  const P = (x, y, z) => { const zz = z - camZ; return zz < 0.3 ? null : { x: W / 2 + (x - camX) * F / zz, y: hor + (camH - y) * F / zz }; };
+  ctx.save(); ctx.globalAlpha = a;
+  const fondo = ctx.createLinearGradient(0, 0, 0, H);
+  fondo.addColorStop(0, '#05070c'); fondo.addColorStop(0.3, '#0b1424'); fondo.addColorStop(1, '#04060b');
+  ctx.fillStyle = fondo; ctx.fillRect(0, 0, W, H);
+  // calles
+  ctx.save();
+  ctx.strokeStyle = 'rgba(90,180,255,.45)'; ctx.lineWidth = 2.2; ctx.shadowColor = '#3b9cff'; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  for (let x = -7; x <= 7; x++) { const p = P(x, 0, camZ + 0.4), q = P(x, 0, camZ + 12); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
+  for (let z = Math.ceil(camZ + 0.4); z <= camZ + 12; z++) { const p = P(-7, 0, z), q = P(7, 0, z); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
+  ctx.stroke(); ctx.restore();
+  // edificios (de atrás hacia adelante)
+  for (const b of EDIFICIOS) {
+    if (b.z1 < camZ + 0.5 || b.z0 > camZ + 11) continue;
+    const q = (x, y, z) => P(x, y, z);
+    const f0 = q(b.x0, 0, b.z0), f1 = q(b.x1, 0, b.z0), f2 = q(b.x1, b.h, b.z0), f3 = q(b.x0, b.h, b.z0);
+    const t0 = q(b.x0, b.h, b.z1), t1 = q(b.x1, b.h, b.z1);
+    if (!f0 || !f1 || !f2 || !f3 || !t0 || !t1) continue;
+    const cerca = Math.hypot((b.x0 + b.x1) / 2 - hx, (b.z0 + b.z1) / 2 - hz), luz = clamp(1 - cerca / 1.3) * 0.6;
+    // lado que ve la cámara
+    const ladoX = (b.x0 + b.x1) / 2 > camX ? b.x0 : b.x1;
+    const s0 = q(ladoX, 0, b.z0), s1 = q(ladoX, 0, b.z1), s2 = q(ladoX, b.h, b.z1), s3 = q(ladoX, b.h, b.z0);
+    if (s0 && s1 && s2 && s3) { ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.lineTo(s3.x, s3.y); ctx.closePath(); ctx.fillStyle = '#0b1019'; ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(f0.x, f0.y); ctx.lineTo(f1.x, f1.y); ctx.lineTo(f2.x, f2.y); ctx.lineTo(f3.x, f3.y); ctx.closePath();
+    ctx.fillStyle = luz > 0 ? `rgb(${20 + luz * 90},${26 + luz * 50},${38})` : '#141b28'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(f3.x, f3.y); ctx.lineTo(f2.x, f2.y); ctx.lineTo(t1.x, t1.y); ctx.lineTo(t0.x, t0.y); ctx.closePath();
+    ctx.fillStyle = luz > 0 ? `rgb(${30 + luz * 140},${38 + luz * 80},${52})` : '#1d2637'; ctx.fill();
+    ctx.strokeStyle = 'rgba(140,190,255,.12)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  // ruta dorada (encima de los edificios para que siempre se vea)
+  const linea = (ancho, blur, color) => {
+    ctx.beginPath(); let ok = false;
+    for (const [x, z] of pts) { const p = P(x, 0.01, z); if (!p) continue; ok ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); ok = true; }
+    ctx.lineWidth = ancho; ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.shadowColor = c.color; ctx.shadowBlur = blur; ctx.stroke();
+  };
+  linea(30, 70, hexA(c.color, 0.3)); linea(13, 35, c.color); linea(4, 0, '#fffbeb');
+  ctx.shadowBlur = 0;
+  // niebla al horizonte
+  const niebla = ctx.createLinearGradient(0, hor - 40, 0, hor + 420);
+  niebla.addColorStop(0, '#0b1424'); niebla.addColorStop(1, 'rgba(11,20,36,0)');
+  ctx.fillStyle = niebla; ctx.fillRect(0, 0, W, hor + 420);
+  // pin en la punta de la ruta
+  const pn = P(hx, 0, hz);
+  if (pn) {
+    const sal = Math.sin(lt * 6) * 6;
+    ctx.save(); ctx.translate(pn.x, pn.y - 70 + sal);
+    ctx.shadowColor = c.color; ctx.shadowBlur = 50; ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.arc(0, 0, 34, Math.PI * 0.85, Math.PI * 2.15); ctx.lineTo(0, 62); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fffbeb'; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(pn.x, pn.y, 46 + sal, 14, 0, 0, Math.PI * 2); ctx.fillStyle = hexA(c.color, 0.35); ctx.fill();
+  }
+  // tarjeta de seguimiento (arriba)
+  const pasos = String(c.pasos || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (pasos.length) {
+    const tw = 900, th = 270, tx = (W - tw) / 2, ty = 1380, kin = eOut(clamp((lt - 0.1) / 0.5));
+    ctx.save(); ctx.globalAlpha = a * kin; ctx.translate(0, (1 - kin) * 40);
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 40;
+    ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 34); ctx.fillStyle = 'rgba(28,30,36,.82)'; ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = `700 54px ${FUENTE}`; ctx.fillText(c.titulo, tx + 44, ty + 78);
+    ctx.fillStyle = '#a1a1aa'; ctx.font = `500 34px ${FUENTE}`; ctx.fillText(c.sub, tx + 44, ty + 124);
+    const y = ty + 180, x0 = tx + 70, x1 = tx + tw - 70, paso = (x1 - x0) / (pasos.length - 1), lleno = x0 + (x1 - x0) * prog;
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    ctx.strokeStyle = c.color; ctx.shadowColor = c.color; ctx.shadowBlur = 16; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(lleno, y); ctx.stroke(); ctx.shadowBlur = 0;
+    pasos.forEach((p, i) => {
+      const px = x0 + paso * i, hecho = px <= lleno + 1;
+      ctx.beginPath(); ctx.arc(px, y, 13, 0, Math.PI * 2); ctx.fillStyle = hecho ? c.color : '#52525b'; ctx.fill();
+      ctx.fillStyle = hecho ? '#e4e4e7' : '#71717a'; ctx.font = `600 26px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillText(p, px, y + 52);
+    });
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// Caja 3D que gira despacio, con el logo en el frente y un anillo de luz alrededor.
+function dibCaja(c, lt, t) {
+  const a = alfa(c, lt), kin = eOut(clamp(lt / 0.7));
+  const yaw = -0.55 + lt * 0.45, pitch = 0.32, S = 230 * c.tam * (0.85 + 0.15 * kin);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const rot = ([x, y, z]) => { const x1 = x * cy + z * sy, z1 = -x * sy + z * cy; return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
+  const pro = ([x, y, z]) => { const d = 5 / (5 + z); return { x: W / 2 + x * S * d, y: c.y + y * S * d * -1 + (1 - kin) * 120, z }; };
+  const V = [[-1, -0.8, -1], [1, -0.8, -1], [1, 0.8, -1], [-1, 0.8, -1], [-1, -0.8, 1], [1, -0.8, 1], [1, 0.8, 1], [-1, 0.8, 1]].map(rot);
+  const caras = [
+    { v: [4, 5, 6, 7], n: [0, 0, 1] }, { v: [1, 0, 3, 2], n: [0, 0, -1], frente: true }, { v: [5, 1, 2, 6], n: [1, 0, 0] },
+    { v: [0, 4, 7, 3], n: [-1, 0, 0] }, { v: [7, 6, 2, 3], n: [0, 1, 0] }, { v: [0, 1, 5, 4], n: [0, -1, 0] }];
+  ctx.save(); ctx.globalAlpha = a * kin;
+  // sombra en el piso
+  ctx.beginPath(); ctx.ellipse(W / 2, c.y + S * 1.05, S * 1.5, S * 0.35, 0, 0, Math.PI * 2);
+  const so = ctx.createRadialGradient(W / 2, c.y + S * 1.05, 0, W / 2, c.y + S * 1.05, S * 1.5);
+  so.addColorStop(0, 'rgba(0,0,0,.7)'); so.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = so; ctx.fill();
+  // anillo de luz (parte de atrás)
+  const anillo = (desde, hasta) => {
+    ctx.save(); ctx.strokeStyle = c.brillo; ctx.lineWidth = 9; ctx.shadowColor = c.brillo; ctx.shadowBlur = 40; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(W / 2, c.y + S * 0.55, S * 1.55, S * 0.42, -0.08, desde, hasta); ctx.stroke(); ctx.restore();
+  };
+  const giro = lt * 2.2;
+  anillo(Math.PI + giro, Math.PI * 1.9 + giro);
+  const luz = rot([0.4, 0.7, 0.6]);
+  const ordenadas = caras.map(f => ({ ...f, z: f.v.reduce((s, i) => s + V[i][2], 0) / 4, nn: rot(f.n) })).filter(f => f.nn[2] < 0.05 || true).sort((x, y) => y.z - x.z);
+  for (const f of ordenadas) {
+    if (f.nn[2] > 0.02) continue;                         // cara de atrás: no se ve
+    const pts = f.v.map(i => pro(V[i]));
+    const l = clamp(0.35 + 0.65 * Math.max(0, -(f.nn[0] * luz[0] + f.nn[1] * luz[1] + f.nn[2] * luz[2])) , 0, 1);
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+    const base = c.color.replace('#', ''), r0 = parseInt(base.slice(0, 2), 16), g0 = parseInt(base.slice(2, 4), 16), b0 = parseInt(base.slice(4, 6), 16);
+    ctx.fillStyle = `rgb(${Math.min(255, r0 + 34 * l)},${Math.min(255, g0 + 34 * l)},${Math.min(255, b0 + 40 * l)})`; ctx.fill();
+    ctx.strokeStyle = hexA(c.brillo, 0.35); ctx.lineWidth = 2; ctx.stroke();
+    const m = medios[c.src];
+    if (f.frente && m && m.img && m.img.naturalWidth) {
+      // logo pegado a la cara: esquina de arriba-izquierda, arriba-derecha y abajo-izquierda de la cara
+      const lg = logoSinFondo(m), o = pro(V[3]), u = pro(V[2]), v = pro(V[0]);
+      const k = 0.6, alto = k * (lg.height / lg.width) * (2 / 1.6);
+      ctx.save();
+      ctx.transform(u.x - o.x, u.y - o.y, v.x - o.x, v.y - o.y, o.x, o.y);   // ahora la cara mide 1 x 1
+      ctx.globalAlpha = a * kin * 0.95; ctx.shadowColor = c.brillo; ctx.shadowBlur = 25;
+      ctx.drawImage(lg, (1 - k) / 2, (1 - alto) / 2, k, alto);
+      ctx.restore();
+    }
+  }
+  anillo(giro, Math.PI * 0.9 + giro);                    // parte de enfrente del anillo
+  ctx.restore();
+}
+
+// Look de cine: brillo en lo que brilla, tono cálido, viñeta y grano (como los comerciales de Amazon/Apple).
+let lienzoBrillo = null, patronGrano = null;
+function acabadoCine(t) {
+  if (P.look === 'normal') return;
+  if (!lienzoBrillo) {
+    lienzoBrillo = document.createElement('canvas'); lienzoBrillo.width = 270; lienzoBrillo.height = 480;
+    const g = document.createElement('canvas'); g.width = g.height = 256;
+    const gc = g.getContext('2d'), d = gc.createImageData(256, 256);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    gc.putImageData(d, 0, 0); patronGrano = ctx.createPattern(g, 'repeat');
+  }
+  const b = lienzoBrillo.getContext('2d');
+  b.filter = 'blur(10px) brightness(1.15) contrast(1.4)'; b.clearRect(0, 0, 270, 480); b.drawImage(lienzo, 0, 0, 270, 480); b.filter = 'none';
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = 0.32; ctx.drawImage(lienzoBrillo, 0, 0, W, H);
+  ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = 0.22; ctx.fillStyle = P.tono || '#ff9a3c'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.72);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.07;
+  ctx.translate((t * 997) % 256, (t * 613) % 256); ctx.fillStyle = patronGrano; ctx.fillRect(-256, -256, W + 512, H + 512);
+  ctx.restore();
+}
+
+// Todas las marcas juntas en una pantalla: cada logo en su cajita, aparecen uno tras otro con brillo.
+function dibMarcas(c, lt) {
+  const nombres = String(c.logos || '').split(',').map(x => x.trim()).filter(n => medios[n] && medios[n].img && medios[n].img.naturalWidth);
+  if (!nombres.length) return;
+  const cols = Math.max(1, Math.round(c.columnas)), filas = Math.ceil(nombres.length / cols);
+  const cw = 440 * c.tam, ch = 170 * c.tam, gx = 50 * c.tam, gy = 60 * c.tam;
+  const altoTotal = filas * ch + (filas - 1) * gy;
+  ctx.save();
+  nombres.forEach((n, i) => {
+    const fila = Math.floor(i / cols), enFila = Math.min(cols, nombres.length - fila * cols), col = i % cols;
+    const anchoFila = enFila * cw + (enFila - 1) * gx;
+    const cx = (W - anchoFila) / 2 + col * (cw + gx) + cw / 2, cy = c.y - altoTotal / 2 + fila * (ch + gy) + ch / 2;
+    const k = eOut(clamp((lt - i * 0.12) / 0.5));
+    if (k <= 0) return;
+    const lg = logoSinFondo(medios[n]), s = Math.min(cw / lg.width, ch / lg.height), w = lg.width * s, h = lg.height * s;
+    ctx.globalAlpha = alfa(c, lt) * k;
+    ctx.filter = k < 1 ? `blur(${(1 - k) * 10}px)` : 'none';
+    ctx.shadowColor = c.color; ctx.shadowBlur = 28;
+    ctx.drawImage(lg, cx - w / 2, cy - h / 2 + (1 - k) * 30, w, h);
+  });
+  ctx.restore();
+}
+
+const DIBUJAR = { marcas: dibMarcas, caja: dibCaja, mapa: dibMapa, sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
 
 function render(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -919,6 +1136,7 @@ function render(t) {
       if (f) { ctx.save(); f(c, t - c.ini, t); ctx.restore(); }
     }
   }
+  acabadoCine(t);
 }
 
 // ---------- videos y sonido ----------
@@ -1020,6 +1238,115 @@ function tipoVideo() {
     'video/webm;codecs=vp9,opus', 'video/webm'];
   return tipos.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
 }
+// ---------- exportar cuadro por cuadro (no depende de tener la ventana a la vista; aguanta videos 4K del iPhone) ----------
+const esperarEvento = (el, ev, ms = 8000) => new Promise(res => { const t = setTimeout(res, ms); el.addEventListener(ev, () => { clearTimeout(t); res(); }, { once: true }); });
+async function cuadroListo(t) {
+  // pone cada video exactamente en su cuadro y espera a que esté dibujable
+  const esperas = [];
+  for (const c of P.clips) {
+    if (!('src' in c)) continue;
+    const m = medios[c.src];
+    if (!m || m.tipo !== 'video' || pista(c.pista).audio) continue;
+    if (t < c.ini || t >= c.ini + c.dur) continue;
+    const el = elemDe(c);
+    if (!el.paused) el.pause();
+    if (el.readyState < 1) esperas.push(esperarEvento(el, 'loadedmetadata'));
+    const obj = Math.min((c.desde || 0) + (t - c.ini), (isFinite(el.duration) ? el.duration : 1e9) - 0.04);
+    if (Math.abs(el.currentTime - obj) > 0.001 || el.readyState < 2) {
+      esperas.push(new Promise(res => {
+        const listo = () => { el.removeEventListener('seeked', listo); res(); };
+        el.addEventListener('seeked', listo);
+        el.currentTime = obj;
+        setTimeout(listo, 4000);
+      }));
+    }
+  }
+  await Promise.all(esperas);
+}
+const decodificados = {};
+async function decodificar(m, ac) {
+  if (decodificados[m.nombre]) return decodificados[m.nombre];
+  try { decodificados[m.nombre] = await ac.decodeAudioData(await (await fetch(m.url)).arrayBuffer()); }
+  catch (e) { decodificados[m.nombre] = null; }
+  return decodificados[m.nombre];
+}
+async function mezclarAudio(dur, sr) {
+  const oc = new OfflineAudioContext(2, Math.ceil(dur * sr), sr);
+  const voces = P.clips.filter(v => v.tipo === 'voz' && medios[v.src]);
+  for (const c of P.clips) {
+    if (!('src' in c) || !medios[c.src] || muda(c.pista)) continue;
+    const vol = c.volumen || 0, m = medios[c.src];
+    if (vol <= 0 || m.tipo === 'imagen') continue;
+    const buf = await decodificar(m, oc);
+    if (!buf) continue;
+    const src = oc.createBufferSource(), g = oc.createGain();
+    src.buffer = buf; src.connect(g); g.connect(oc.destination);
+    g.gain.setValueAtTime(vol, c.ini);
+    if (c.tipo === 'musica') {   // se hace a un lado cuando habla el narrador
+      for (const v of voces) { g.gain.setTargetAtTime(vol * 0.35, Math.max(0, v.ini - 0.15), 0.05); g.gain.setTargetAtTime(vol, v.ini + v.dur + 0.1, 0.1); }
+      if (c.fadeOut > 0) { g.gain.setValueAtTime(vol, Math.max(c.ini, c.ini + c.dur - c.fadeOut)); g.gain.linearRampToValueAtTime(0, c.ini + c.dur); }
+    }
+    src.start(c.ini, c.desde || 0, c.dur);
+  }
+  return oc.startRendering();
+}
+async function exportarCuadros() {
+  const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
+  if (tocando) pausa();
+  const fps = 30, dur = duracion(), n = Math.ceil(dur * fps), sr = 48000;
+  const cfgV = { codec: 'avc1.640028', width: W, height: H, bitrate: 12e6, framerate: fps };
+  if (!(await VideoEncoder.isConfigSupported(cfgV)).supported) cfgV.codec = 'avc1.4d0028';
+  exportando = true; posterExp = null; $('bExportar').disabled = true; verVista('editor');
+  $('progreso').style.display = 'block'; $('aviso').textContent = 'Mezclando el audio…';
+  const audio = await mezclarAudio(dur, sr);
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), fastStart: 'in-memory',
+    video: { codec: 'avc', width: W, height: H, frameRate: fps }, audio: { codec: 'aac', numberOfChannels: 2, sampleRate: sr } });
+  let error = null;
+  const ve = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: e => error = e });
+  ve.configure(cfgV);
+  const ae = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: e => error = e });
+  ae.configure({ codec: 'mp4a.40.2', numberOfChannels: 2, sampleRate: sr, bitrate: 192000 });
+  // audio en pedazos de 1024 muestras
+  const L0 = audio.getChannelData(0), R0 = audio.getChannelData(1);
+  for (let i = 0; i < L0.length; i += 1024) {
+    const k = Math.min(1024, L0.length - i), datos = new Float32Array(k * 2);
+    datos.set(L0.subarray(i, i + k), 0); datos.set(R0.subarray(i, i + k), k);
+    const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: k, numberOfChannels: 2, timestamp: Math.round(i / sr * 1e6), data: datos });
+    ae.encode(ad); ad.close();
+  }
+  for (let i = 0; i < n && !error; i++) {
+    const t = i / fps;
+    await cuadroListo(t);
+    tAct = t; render(t); reloj();
+    if (!posterExp && t > dur * 0.3) posterExp = miniatura();
+    const vf = new VideoFrame(lienzo, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / fps) });
+    ve.encode(vf, { keyFrame: i % (fps * 2) === 0 }); vf.close();
+    if (ve.encodeQueueSize > 8) await new Promise(r => ve.addEventListener('dequeue', r, { once: true }));
+    if (i % 10 === 0) $('aviso').textContent = `Exportando cuadro ${i} de ${n}… (puedes dejar la ventana escondida)`;
+  }
+  await ve.flush(); await ae.flush();
+  exportando = false;
+  if (error) { $('aviso').textContent = 'No se pudo exportar: ' + error.message; $('bExportar').disabled = false; $('progreso').style.display = 'none'; return; }
+  muxer.finalize();
+  const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+  const d = new Date(), dos = x => String(x).padStart(2, '0');
+  const nom = `comercial-fitwearmx-${d.getFullYear()}${dos(d.getMonth() + 1)}${dos(d.getDate())}-${dos(d.getHours())}${dos(d.getMinutes())}.mp4`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nom;
+  a.textContent = '⬇️ ' + nom + ' (' + (blob.size / 1048576).toFixed(1) + ' MB)';
+  $('aviso').innerHTML = '✅ Listo. También quedó en Mis creaciones. '; $('aviso').appendChild(a);
+  guardarCreacion(blob, nom);
+  a.click();
+  $('progreso').style.display = 'none'; $('bExportar').disabled = false;
+}
+async function exportarMejor() {
+  if (window.VideoEncoder && window.AudioEncoder) {
+    try { return await exportarCuadros(); }
+    catch (e) { console.warn('cuadro por cuadro falló, uso el modo en vivo', e); exportando = false; }
+  }
+  return exportar();
+}
+
 async function exportar() {
   const tipo = tipoVideo();
   if (!tipo) { alert('Este navegador no puede exportar video. Usa Google Chrome actualizado.'); return; }
@@ -1201,7 +1528,7 @@ function cargar(obj) {
   }
   sel = null; tAct = 0; cambio();
 }
-function cambio() { pintarTL(); pintarInspector(); irA(tAct); autoguardar(); }
+function cambio() { pintarTL(); pintarInspector(); irA(tAct); autoguardar(); if ($('selLook')) $('selLook').value = P.look === 'normal' ? 'normal' : 'cine'; }
 
 // ---------- plantilla ----------
 function plantilla() {
@@ -1428,7 +1755,7 @@ function cortar() {
 
 $('bPlay').onclick = play;
 $('bInicio').onclick = () => irA(0);
-$('bExportar').onclick = exportar;
+$('bExportar').onclick = exportarMejor;
 $('bCortar').onclick = cortar;
 $('bDuplicar').onclick = duplicar;
 $('bBorrar').onclick = borrar;
@@ -1480,6 +1807,7 @@ $('fMedios').onchange = async e => {
   cambio();
 };
 document.querySelectorAll('[data-agregar]').forEach(b => b.onclick = () => agregar(b.dataset.agregar));
+$('selLook').onchange = e => { guardarHist(); P.look = e.target.value; cambio(); };
 $('zoomTL').oninput = e => { pps = +e.target.value; pintarTL(); };
 document.addEventListener('keydown', e => {
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
@@ -1497,7 +1825,7 @@ document.addEventListener('keydown', e => {
 // Para que Claude (o cualquier script) pueda armar comerciales solo.
 window.Comercial = {
   get proyecto() { return P; },
-  cargar, plantilla, exportar, irA, render, refrescar: cambio, crearRitmo, ritmoAlProyecto,
+  cargar, plantilla, exportar: exportarMejor, exportarEnVivo: exportar, irA, render, refrescar: cambio, crearRitmo, ritmoAlProyecto,
   async agregarMedio(url, nombre) {
     const blob = await (await fetch(url)).blob();
     const n = nombre || decodeURIComponent(url.split('/').pop().split('?')[0]) || 'archivo';
