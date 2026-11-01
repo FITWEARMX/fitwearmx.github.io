@@ -405,8 +405,8 @@ const TIPOS = {
     def: { texto: 'Pedir por WhatsApp', textoFin: 'Pedido enviado ✓', color: '#25D366', y: 1640 },
     campos: [['texto', 'Texto', 'texto'], ['textoFin', 'Al final dice', 'texto'], ['color', 'Color', 'color'], ['y', 'Altura', 'rango', 100, 1800, 1]] },
   logo: { nombre: 'Logo', icono: '✴️', pista: 'FX', dur: 3,
-    def: { texto: 'FITWEARMX', sub: 'fitwearmx.github.io/tienda', color: '#a855f7', tam: 150, y: 900, fadeIn: 0, fadeOut: 0 },
-    campos: [['texto', 'Logo', 'texto'], ['sub', 'Abajo dice', 'texto'], ['color', 'Brillo', 'color'], ['tam', 'Tamaño', 'rango', 60, 260, 1],
+    def: { src: '', texto: 'FITWEARMX', sub: 'fitwearmx.github.io/tienda', color: '#a855f7', tam: 150, y: 900, fadeIn: 0, fadeOut: 0 },
+    campos: [['src', 'Logo en imagen', 'medio', 'imagen'], ['texto', 'Logo (letras)', 'texto'], ['sub', 'Abajo dice', 'texto'], ['color', 'Brillo', 'color'], ['tam', 'Tamaño', 'rango', 60, 260, 1],
       ['y', 'Altura', 'rango', 200, 1700, 1], ...FADES] },
   voz: { nombre: 'Voz', icono: '🎙', pista: 'A2', dur: 3,
     def: { src: '', guion: '', desde: 0, volumen: 1, fadeOut: 0 },
@@ -672,7 +672,51 @@ function dibBoton(c, lt) {
   ctx.restore();
 }
 
+// Logo en imagen: lo negro del fondo se vuelve transparente (sirve el logo blanco sobre negro) y se cachea.
+function logoSinFondo(m) {
+  if (m.logo) return m.logo;
+  const im = m.img, w = im.naturalWidth, h = im.naturalHeight, cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const k = cv.getContext('2d'); k.drawImage(im, 0, 0);
+  const d = k.getImageData(0, 0, w, h), px = d.data;
+  // ¿cómo es el fondo? se mira la esquina: transparente, claro (logo oscuro) u oscuro (logo claro)
+  const esq = [px[0], px[1], px[2], px[3]], fondoClaro = esq[3] > 200 && esq[0] + esq[1] + esq[2] > 380, fondoOscuro = esq[3] > 200 && !fondoClaro;
+  for (let i = 0; i < px.length; i += 4) {
+    const lum = (px[i] + px[i + 1] + px[i + 2]) / 3;
+    if (fondoClaro) { px[i + 3] = Math.min(px[i + 3], 255 - lum); px[i] = px[i + 1] = px[i + 2] = 255; }        // logo oscuro -> blanco
+    else if (fondoOscuro) { px[i + 3] = Math.min(px[i + 3], lum); px[i] = px[i + 1] = px[i + 2] = 255; }        // logo claro -> blanco
+    else { px[i] = px[i + 1] = px[i + 2] = 255; }                                                                   // ya transparente -> blanco
+  }
+  k.putImageData(d, 0, 0);
+  return (m.logo = cv);
+}
+function dibLogoImagen(c, lt, m) {
+  const k = eOut(clamp(lt / 0.9)), lg = logoSinFondo(m);
+  const w = c.tam * 3.2, h = w * lg.height / lg.width;
+  ctx.save();
+  ctx.globalAlpha = alfa(c, lt) * k;
+  ctx.translate(W / 2, c.y); ctx.scale(0.9 + 0.1 * k, 0.9 + 0.1 * k);
+  if (k < 1) ctx.filter = `blur(${(1 - k) * 14}px)`;
+  ctx.shadowColor = c.color; ctx.shadowBlur = 60;
+  ctx.drawImage(lg, -w / 2, -h / 2, w, h);
+  ctx.shadowBlur = 20; ctx.drawImage(lg, -w / 2, -h / 2, w, h);
+  // destello que cruza el logo
+  const p = -0.3 + 1.6 * clamp((lt - 0.4) / 1.2);
+  if (p > -0.2 && p < 1.2) {
+    const cv = document.createElement('canvas'); cv.width = lg.width; cv.height = lg.height;
+    const q = cv.getContext('2d'); q.drawImage(lg, 0, 0);
+    q.globalCompositeOperation = 'source-atop';
+    const g = q.createLinearGradient(0, 0, cv.width, 0);
+    g.addColorStop(clamp(p - 0.15), 'rgba(255,255,255,0)'); g.addColorStop(clamp(p), 'rgba(255,255,255,.9)'); g.addColorStop(clamp(p + 0.15), 'rgba(255,255,255,0)');
+    q.fillStyle = g; q.fillRect(0, 0, cv.width, cv.height);
+    ctx.shadowColor = 'transparent'; ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(cv, -w / 2, -h / 2, w, h);
+  }
+  ctx.restore();
+}
 function dibLogo(c, lt) {
+  const m = medios[c.src];
+  if (m && m.img && m.img.naturalWidth) return dibLogoImagen(c, lt, m);
   const k = eOut(clamp(lt / 0.9));
   ctx.save();
   ctx.globalAlpha = alfa(c, lt) * k;
@@ -1134,7 +1178,7 @@ async function ritmoAlProyecto(bpm = 120) {
   const nombre = await agregarArchivo(new File([await crearRitmo(bpm, seg)], `Ritmo ${bpm}bpm.wav`, { type: 'audio/wav' }));
   guardarHist();
   const m = P.clips.find(c => c.tipo === 'musica' && !medios[c.src]);
-  if (m) m.src = nombre; else P.clips.push(nuevoClip('musica', { src: nombre, ini: 0, dur: seg }));
+  if (m) m.src = nombre; else P.clips.push(nuevoClip('musica', { src: nombre, ini: 0, dur: r1(Math.max(1, seg - 1)) }));
   $('aviso').textContent = '🥁 Ritmo listo (' + bpm + ' BPM). Es tuyo, sin derechos de autor.';
   cambio();
   return nombre;
