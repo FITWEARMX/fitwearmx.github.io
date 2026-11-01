@@ -286,6 +286,7 @@
       <button type="button" data-agregar="puerta">🚪 Caja en la puerta</button>
       <button type="button" data-agregar="explica">🪧 Tarjeta</button>
       <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select> <input id="colTono" type="color" value="#8b5cf6" title="Color de la luz"></label>
+      <label style="margin-left:0">Calidad <select id="selCalidad"><option value="1080">1080p</option><option value="4k">4K</option></select></label>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
       <button type="button" data-agregar="boton">🟢 Botón</button>
@@ -369,9 +370,11 @@ const TIPOS = {
     def: { color1: '#2a1550', color2: '#030207', fadeIn: 0, fadeOut: 0 },
     campos: [['color1', 'Color centro', 'color'], ['color2', 'Color orilla', 'color'], ...FADES] },
   video: { nombre: 'Video/foto', icono: '🎬', pista: 'V1', dur: 3,
-    def: { src: '', nota: '', desde: 0, zoomIni: 1, zoomFin: 1.08, volumen: 0, anillo: '', fadeIn: 0.1, fadeOut: 0.1 },
+    def: { src: '', nota: '', desde: 0, zoomIni: 1, zoomFin: 1.08, focoX: 0.5, focoY: 0.5, cine: 'no', volumen: 0, anillo: '', fadeIn: 0.1, fadeOut: 0.1 },
     campos: [['src', 'Archivo', 'medio', 'video,imagen'], ['nota', 'Nota', 'texto'], ['desde', 'Empieza en (s)', 'num', 0, 3600, 0.1],
-      ['zoomIni', 'Zoom inicio', 'rango', 1, 2.5, 0.01], ['zoomFin', 'Zoom final', 'rango', 1, 2.5, 0.01], ['volumen', 'Volumen', 'rango', 0, 1, 0.05], ['anillo', 'Anillo de luz', 'color'], ...FADES] },
+      ['zoomIni', 'Zoom inicio', 'rango', 1, 2.5, 0.01], ['zoomFin', 'Zoom final', 'rango', 1, 2.5, 0.01], ['focoX', 'Zoom hacia ↔', 'rango', 0, 1, 0.01], ['focoY', 'Zoom hacia ↕', 'rango', 0, 1, 0.01],
+      ['cine', 'Filtro de cine encima', 'sel', { no: 'No (se ve limpio y nítido)', si: 'Sí' }],
+      ['volumen', 'Volumen', 'rango', 0, 1, 0.05], ['anillo', 'Anillo de luz', 'color'], ...FADES] },
   celular: { nombre: 'Celular', icono: '📱', pista: 'V2', dur: 6,
     def: { src: '', nota: 'Tu grabación de pantalla', desde: 0, escala: 0.64, x: 0, y: 60, entrada: 'subir', flotar: 'si', marco: 'morado',
       zoomIni: 1, zoomFin: 1, focoX: 0.5, focoY: 0.5, brillo: '#7c3aed', volumen: 0, toque: 'no', toqueX: 0.5, toqueY: 0.5, toqueT: 1, fadeIn: 0, fadeOut: 0.2 },
@@ -500,12 +503,12 @@ function fuenteDe(c) {
   return e && e.readyState >= 2 ? e : null;
 }
 
-function cubrir(src, x, y, w, h, zoom = 1) {
+function cubrir(src, x, y, w, h, zoom = 1, fx = 0.5, fy = 0.5) {
   const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
   if (!sw || !sh) return;
   const s = Math.max(w / sw, h / sh) * zoom;
   const dw = sw * s, dh = sh * s;
-  ctx.drawImage(src, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  ctx.drawImage(src, x + (w - dw) * fx, y + (h - dh) * fy, dw, dh);   // fx/fy: hacia dónde se acerca el zoom
 }
 
 function relleno(x, y, w, h, texto) {
@@ -547,7 +550,7 @@ function dibVideo(c, lt) {
   ctx.save(); ctx.globalAlpha = alfa(c, lt);
   const src = fuenteDe(c);
   const z = lerp(c.zoomIni, c.zoomFin, eInOut(clamp(lt / c.dur)));
-  if (src) cubrir(src, 0, 0, W, H, z); else if (!medios[c.src]) relleno(0, 0, W, H, c.nota || 'Pon aquí tu video');
+  if (src) cubrir(src, 0, 0, W, H, z, c.focoX ?? 0.5, c.focoY ?? 0.5); else if (!medios[c.src]) relleno(0, 0, W, H, c.nota || 'Pon aquí tu video');
   if (c.anillo) {   // halo de luz que gira encima del clip (como el anillo de la caja de Amazon)
     const g = lt * 2.4, cx = W / 2, cy = H * 0.6;
     ctx.save();
@@ -762,6 +765,12 @@ function dibLogoImagen(c, lt, m) {
     q.fillStyle = g; q.fillRect(0, 0, cv.width, cv.height);
     ctx.shadowColor = 'transparent'; ctx.globalCompositeOperation = 'lighter';
     ctx.drawImage(cv, -w / 2, -h / 2, w, h);
+  }
+  if (c.sub) {   // texto abajo del logo (p. ej. "Link en mi perfil")
+    ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none'; ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = alfa(c, lt) * clamp((lt - 0.6) / 0.5);
+    ctx.font = `600 58px ${FUENTE}`; ctx.textAlign = 'center'; ctx.fillStyle = '#e9e4f5';
+    ctx.fillText(c.sub, 0, h / 2 + 120);
   }
   ctx.restore();
 }
@@ -1124,6 +1133,7 @@ function dibCaja(c, lt, t) {
 let lienzoBrillo = null, patronGrano = null;
 function acabadoCine(t) {
   if (P.look === 'normal') return;
+  if (P.clips.some(c => c.tipo === 'video' && medios[c.src] && c.cine !== 'si' && t >= c.ini && t < c.ini + c.dur && !oculta(c.pista))) return;   // video/foto real: limpio
   if (!lienzoBrillo) {
     lienzoBrillo = document.createElement('canvas'); lienzoBrillo.width = 270; lienzoBrillo.height = 480;
     const g = document.createElement('canvas'); g.width = g.height = 256;
@@ -1230,8 +1240,14 @@ function dibExplica(c, lt) {
 
 const DIBUJAR = { puerta: dibPuerta, explica: dibExplica, marcas: dibMarcas, caja: dibCaja, mapa: dibMapa, sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
 
+function tamCalidad() {
+  const e = P.calidad === '4k' ? 2 : 1;
+  if (lienzo.width !== W * e) { lienzo.width = W * e; lienzo.height = H * e; }
+  return e;
+}
 function render(t) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const E = tamCalidad();
+  ctx.setTransform(E, 0, 0, E, 0, 0);
   ctx.globalAlpha = 1; ctx.filter = 'none';
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   for (const p of PISTAS) {
@@ -1400,13 +1416,14 @@ async function exportarCuadros() {
   const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
   if (tocando) pausa();
   const fps = 30, dur = duracion(), n = Math.ceil(dur * fps), sr = 48000;
-  const cfgV = { codec: 'avc1.640028', width: W, height: H, bitrate: 20e6, framerate: fps };
+  const E = tamCalidad();
+  const cfgV = { codec: E > 1 ? 'avc1.640033' : 'avc1.640028', width: W * E, height: H * E, bitrate: E > 1 ? 45e6 : 20e6, framerate: fps };
   if (!(await VideoEncoder.isConfigSupported(cfgV)).supported) cfgV.codec = 'avc1.4d0028';
   exportando = true; posterExp = null; $('bExportar').disabled = true; verVista('editor');
   $('progreso').style.display = 'block'; $('aviso').textContent = 'Mezclando el audio…';
   const audio = await mezclarAudio(dur, sr);
   const muxer = new Muxer({ target: new ArrayBufferTarget(), fastStart: 'in-memory',
-    video: { codec: 'avc', width: W, height: H, frameRate: fps }, audio: { codec: 'aac', numberOfChannels: 2, sampleRate: sr } });
+    video: { codec: 'avc', width: W * E, height: H * E, frameRate: fps }, audio: { codec: 'aac', numberOfChannels: 2, sampleRate: sr } });
   let error = null;
   const ve = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: e => error = e });
   ve.configure(cfgV);
@@ -1914,6 +1931,7 @@ $('fMedios').onchange = async e => {
 };
 document.querySelectorAll('[data-agregar]').forEach(b => b.onclick = () => agregar(b.dataset.agregar));
 $('selLook').onchange = e => { guardarHist(); P.look = e.target.value; cambio(); };
+$('selCalidad').onchange = e => { P.calidad = e.target.value; render(tAct); autoguardar(); };
 $('colTono').oninput = e => { P.tono = e.target.value; render(tAct); autoguardar(); };
 $('zoomTL').oninput = e => { pps = +e.target.value; pintarTL(); };
 document.addEventListener('keydown', e => {
