@@ -89,6 +89,23 @@
     -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; font-variant-numeric: tabular-nums;
   }
   .final-price .profit-note { margin-top: 10px; font-size: 0.85rem; color: var(--accent-2); }
+  .field label { gap: 10px; }
+  .field label span.hint { text-align: right; }
+  .field label a { color: var(--accent); }
+  .formula { margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted); }
+  .final-price { margin-bottom: 16px; }
+  .ordena {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;
+    padding: 14px 16px; border-radius: var(--radius-sm); background: var(--accent-soft); border: 1px solid var(--accent);
+  }
+  .ordena-texto { font-weight: 800; font-size: 1.25rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ordena button {
+    background: var(--accent); color: #0d1117; border: 0; border-radius: var(--radius-sm);
+    padding: 10px 14px; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+  .breakdown-row.total .label, .breakdown-row.total .value { color: var(--text-main); font-weight: 700; }
+  .solo-tuyo { margin-bottom: 0; padding-top: 16px; border-top: 1px dashed var(--border); }
+  .value.bajo { color: #f87171; }
   .foot { margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
 </style>
 </head>
@@ -96,47 +113,50 @@
 <div class="page">
   <header>
     <h1>Cotizador de Importación</h1>
-    <p>Ropa deportiva · Costos, tipo de cambio y margen de ganancia en tiempo real</p>
+    <p>Ropa deportiva · Precio en Monterrey y anticipo en tiempo real</p>
   </header>
 
   <div class="layout">
     <section class="card">
       <h2>📦 Datos de la prenda</h2>
       <div class="field">
-        <label for="costoProducto">Costo del producto <span class="hint">USD</span></label>
+        <label for="costoProducto">Precio de la prenda <span class="hint">USD</span></label>
         <div class="input-wrap"><span class="prefix">$</span>
-          <input type="number" id="costoProducto" value="0" min="0" step="0.01" inputmode="decimal"></div>
+          <input type="number" id="costoProducto" value="" placeholder="0" min="0" step="0.01" inputmode="decimal"></div>
       </div>
       <div class="field">
-        <label for="costoLogistica">Precio de logística <span class="hint">MXN / envío</span></label>
+        <label for="tipoCambio">Tipo de cambio del día <span class="hint">MXN por USD · <a href="#" id="tcReset">volver a 18</a></span></label>
         <div class="input-wrap"><span class="prefix">$</span>
-          <input type="number" id="costoLogistica" value="0" min="0" step="0.01" inputmode="decimal"></div>
+          <input type="number" id="tipoCambio" value="18" min="0" step="0.01" inputmode="decimal"></div>
       </div>
       <div class="field">
-        <label for="tipoCambio">Tipo de cambio <span class="hint">MXN por USD</span></label>
+        <label for="costoLogistica">Mi costo de logística por prenda <span class="hint">MXN · opcional, solo para ver cuánto te queda</span></label>
         <div class="input-wrap"><span class="prefix">$</span>
-          <input type="number" id="tipoCambio" value="0" min="0" step="0.01" inputmode="decimal"></div>
+          <input type="number" id="costoLogistica" value="" placeholder="0" min="0" step="0.01" inputmode="decimal"></div>
       </div>
-      <div class="field">
-        <label for="margen">Margen de ganancia <span class="hint">sobre costo base MXN</span></label>
-        <div class="slider-row">
-          <input type="range" id="margen" min="0" max="200" step="1" value="0">
-          <span class="margin-value" id="margenValor">0%</span>
-        </div>
-      </div>
+      <p class="formula">Precio MTY = USD × tipo de cambio × 1.60, redondeado hacia arriba a 10</p>
     </section>
 
     <section class="card">
       <h2>📊 Resultado de la cotización</h2>
-      <div class="breakdown">
-        <div class="breakdown-row"><span class="label">Costo Total (USD)</span><span class="value" id="outCostoTotalUsd">$0.00</span></div>
-        <div class="breakdown-row"><span class="label">Costo Base (MXN)</span><span class="value" id="outCostoBaseMxn">$0.00</span></div>
-        <div class="breakdown-row"><span class="label">Ganancia (MXN)</span><span class="value" id="outGananciaMxn">$0.00</span></div>
-      </div>
       <div class="final-price">
-        <div class="label">Precio final de venta</div>
-        <div class="value" id="outPrecioFinal">$0.00</div>
-        <div class="profit-note" id="outMargenNota">Margen aplicado: 0%</div>
+        <div class="label">Precio en Monterrey</div>
+        <div class="value" id="outPrecioFinal">$0</div>
+        <div class="profit-note">+ $90 de envío local (se paga al chofer al recibir)</div>
+      </div>
+      <div class="ordena">
+        <div class="ordena-texto" id="outOrdena">Ordena con $0</div>
+        <button type="button" id="btnCopiar">Copiar</button>
+      </div>
+      <div class="breakdown">
+        <div class="breakdown-row"><span class="label">Anticipo para ordenar</span><span class="value" id="outAnticipo">$0</span></div>
+        <div class="breakdown-row"><span class="label">Resto de la prenda</span><span class="value" id="outResto">$0</span></div>
+        <div class="breakdown-row"><span class="label">Envío local (chofer)</span><span class="value">$90</span></div>
+        <div class="breakdown-row total"><span class="label">Paga al recibir</span><span class="value" id="outAlRecibir">$0</span></div>
+      </div>
+      <div class="breakdown solo-tuyo">
+        <div class="breakdown-row"><span class="label">Tu costo (prenda × TC + logística)</span><span class="value" id="outCosto">$0</span></div>
+        <div class="breakdown-row"><span class="label">Te queda</span><span class="value" id="outTeQueda">$0</span></div>
       </div>
     </section>
   </div>
@@ -146,37 +166,59 @@
 
 <script>
   /* FÓRMULAS:
-     Costo Total (USD)  = Costo del producto (USD)
-     Costo Base (MXN)   = Costo Total (USD) * Tipo de cambio + Logística (MXN)
-     Ganancia (MXN)     = Costo Base * Margen%
-     Precio Final (MXN) = Costo Base + Ganancia */
-  const ids = ['costoProducto', 'costoLogistica', 'tipoCambio', 'margen'];
+     Precio MTY (MXN)   = USD * Tipo de cambio * 1.60, redondeado hacia arriba a 10
+     Ordena con (MXN)   = 25% del precio, redondeado hacia arriba a 10 (en público nunca decir "25%")
+     Paga al recibir    = Precio - anticipo + $90 de envío local (chofer)
+     Te queda (MXN)     = Precio - (USD * Tipo de cambio + logística)  → solo para ti */
+  const FACTOR = 1.6, ENVIO_LOCAL = 90, TC_BASE = 18, TC_KEY = 'cotizador_tc';
+  const ids = ['costoProducto', 'tipoCambio', 'costoLogistica'];
   const inputs = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   const $ = id => document.getElementById(id);
+  const arriba10 = n => Math.ceil(n / 10) * 10;
 
+  // El tipo de cambio que escribas se recuerda en este aparato (si no, arranca en 18)
+  try { const tcGuardado = localStorage.getItem(TC_KEY); if (tcGuardado) inputs.tipoCambio.value = tcGuardado; } catch (e) {}
 
-  function moneda(num, currency) {
+  function moneda(num) {
     if (isNaN(num)) num = 0;
-    return num.toLocaleString(currency === 'MXN' ? 'es-MX' : 'en-US',
-      { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   function calcular() {
-    const costoProducto = parseFloat(inputs.costoProducto.value) || 0;
-    const logistica     = parseFloat(inputs.costoLogistica.value) || 0;
-    const tc            = parseFloat(inputs.tipoCambio.value) || 0;
-    const margen        = parseFloat(inputs.margen.value) || 0;
+    const usd       = parseFloat(inputs.costoProducto.value) || 0;
+    const tc        = parseFloat(inputs.tipoCambio.value) || 0;
+    const logistica = parseFloat(inputs.costoLogistica.value) || 0;
 
-    const costoBase = costoProducto * tc + logistica;
-    const ganancia  = costoBase * (margen / 100);
+    const precio   = arriba10(usd * tc * FACTOR - 1e-9);
+    const anticipo = arriba10(precio * 0.25 - 1e-9);
+    const resto    = precio - anticipo;
+    const costo    = usd * tc + logistica;
+    const teQueda  = precio - costo;
 
-    $('outCostoTotalUsd').textContent = moneda(costoProducto, 'USD');
-    $('outCostoBaseMxn').textContent  = moneda(costoBase, 'MXN');
-    $('outGananciaMxn').textContent   = moneda(ganancia, 'MXN');
-    $('outPrecioFinal').textContent   = moneda(costoBase + ganancia, 'MXN');
-    $('outMargenNota').textContent    = `Margen aplicado: ${margen}%`;
-    $('margenValor').textContent      = `${margen}%`;
+    $('outPrecioFinal').textContent = moneda(precio);
+    $('outOrdena').textContent      = `Ordena con ${moneda(anticipo)}`;
+    $('outAnticipo').textContent    = moneda(anticipo);
+    $('outResto').textContent       = moneda(resto);
+    $('outAlRecibir').textContent   = moneda(resto + ENVIO_LOCAL);
+    $('outCosto').textContent       = moneda(costo);
+    $('outTeQueda').textContent     = precio ? `${moneda(teQueda)} (${Math.round(teQueda / precio * 100)}%)` : moneda(0);
+    $('outTeQueda').classList.toggle('bajo', precio > 0 && teQueda / precio < 0.15);
   }
+
+  inputs.tipoCambio.addEventListener('input', () => {
+    try { localStorage.setItem(TC_KEY, inputs.tipoCambio.value); } catch (e) {}
+  });
+  $('tcReset').addEventListener('click', e => {
+    e.preventDefault();
+    inputs.tipoCambio.value = TC_BASE;
+    try { localStorage.removeItem(TC_KEY); } catch (e) {}
+    calcular();
+  });
+  $('btnCopiar').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('outOrdena').textContent); $('btnCopiar').textContent = '¡Copiado!'; }
+    catch (e) { $('btnCopiar').textContent = 'No se pudo'; }
+    setTimeout(() => $('btnCopiar').textContent = 'Copiar', 1500);
+  });
 
   ids.forEach(id => inputs[id].addEventListener('input', calcular));
   calcular();
