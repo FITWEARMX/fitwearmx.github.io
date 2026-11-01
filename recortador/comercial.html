@@ -283,7 +283,9 @@
       <button type="button" data-agregar="mapa">🗺 Mapa</button>
       <button type="button" data-agregar="caja">📦 Caja 3D</button>
       <button type="button" data-agregar="marcas">🏷 Marcas</button>
-      <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select></label>
+      <button type="button" data-agregar="puerta">🚪 Caja en la puerta</button>
+      <button type="button" data-agregar="explica">🪧 Tarjeta</button>
+      <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select> <input id="colTono" type="color" value="#8b5cf6" title="Color de la luz"></label>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
       <button type="button" data-agregar="boton">🟢 Botón</button>
@@ -367,9 +369,9 @@ const TIPOS = {
     def: { color1: '#2a1550', color2: '#030207', fadeIn: 0, fadeOut: 0 },
     campos: [['color1', 'Color centro', 'color'], ['color2', 'Color orilla', 'color'], ...FADES] },
   video: { nombre: 'Video/foto', icono: '🎬', pista: 'V1', dur: 3,
-    def: { src: '', nota: '', desde: 0, zoomIni: 1, zoomFin: 1.08, volumen: 0, fadeIn: 0.1, fadeOut: 0.1 },
+    def: { src: '', nota: '', desde: 0, zoomIni: 1, zoomFin: 1.08, volumen: 0, anillo: '', fadeIn: 0.1, fadeOut: 0.1 },
     campos: [['src', 'Archivo', 'medio', 'video,imagen'], ['nota', 'Nota', 'texto'], ['desde', 'Empieza en (s)', 'num', 0, 3600, 0.1],
-      ['zoomIni', 'Zoom inicio', 'rango', 1, 2.5, 0.01], ['zoomFin', 'Zoom final', 'rango', 1, 2.5, 0.01], ['volumen', 'Volumen', 'rango', 0, 1, 0.05], ...FADES] },
+      ['zoomIni', 'Zoom inicio', 'rango', 1, 2.5, 0.01], ['zoomFin', 'Zoom final', 'rango', 1, 2.5, 0.01], ['volumen', 'Volumen', 'rango', 0, 1, 0.05], ['anillo', 'Anillo de luz', 'color'], ...FADES] },
   celular: { nombre: 'Celular', icono: '📱', pista: 'V2', dur: 6,
     def: { src: '', nota: 'Tu grabación de pantalla', desde: 0, escala: 0.64, x: 0, y: 60, entrada: 'subir', flotar: 'si', marco: 'morado',
       zoomIni: 1, zoomFin: 1, focoX: 0.5, focoY: 0.5, brillo: '#7c3aed', volumen: 0, toque: 'no', toqueX: 0.5, toqueY: 0.5, toqueT: 1, fadeIn: 0, fadeOut: 0.2 },
@@ -398,10 +400,10 @@ const TIPOS = {
       ['escala', 'Tamaño', 'rango', 0.3, 1.2, 0.01], ['x', 'Mover ↔', 'rango', -500, 500, 1], ['y', 'Altura', 'rango', 200, 1700, 1],
       ['zoomFin', 'Acercar', 'rango', 1, 1.5, 0.01], ['luz', 'Luz detrás', 'color'], ...FADES] },
   texto: { nombre: 'Texto', icono: '🅰️', pista: 'T1', dur: 1.6,
-    def: { texto: 'Elige.', tam: 150, peso: 800, color: '#ffffff', y: 300, brillo: '', linea: 'no', colorLinea: '#a855f7', fadeIn: 0, fadeOut: 0.3 },
+    def: { texto: 'Elige.', tam: 150, peso: 800, color: '#ffffff', y: 300, brillo: '', linea: 'no', colorLinea: '#a855f7', logoFin: '', fadeIn: 0, fadeOut: 0.3 },
     campos: [['texto', 'Texto', 'area'], ['tam', 'Tamaño', 'rango', 40, 320, 1], ['peso', 'Grosor', 'sel', { 400: 'Normal', 600: 'Semi', 800: 'Negrita', 900: 'Extra' }],
       ['color', 'Color', 'color'], ['y', 'Altura', 'rango', 80, 1840, 1], ['brillo', 'Brillo', 'color'],
-      ['linea', 'Línea brillante', 'sel', { no: 'No', si: 'Sí' }], ['colorLinea', 'Color línea', 'color'], ...FADES] },
+      ['linea', 'Línea brillante', 'sel', { no: 'No', si: 'Sí' }], ['colorLinea', 'Color línea', 'color'], ['logoFin', 'La línea termina en logo', 'medio', 'imagen'], ...FADES] },
   notificacion: { nombre: 'Notificación', icono: '🔔', pista: 'FX', dur: 2.6,
     def: { app: 'FITWEARMX', titulo: 'Tu pedido llegó 📦', cuerpo: 'Venom Track Jacket · Rojo · Talla L', y: 90 },
     campos: [['app', 'App', 'texto'], ['titulo', 'Título', 'texto'], ['cuerpo', 'Mensaje', 'texto'], ['y', 'Altura', 'rango', 40, 1600, 1]] },
@@ -417,6 +419,12 @@ const TIPOS = {
     def: { logos: '', columnas: 2, tam: 1, y: 960, color: '#ffffff', fadeIn: 0, fadeOut: 0.2 },
     campos: [['logos', 'Logos (nombres de archivo con comas)', 'area'], ['columnas', 'Columnas', 'rango', 1, 4, 1],
       ['tam', 'Tamaño', 'rango', 0.5, 1.6, 0.01], ['y', 'Altura', 'rango', 300, 1600, 1], ['color', 'Brillo', 'color'], ...FADES] },
+  puerta: { nombre: 'Caja en la puerta', icono: '🚪', pista: 'V2', dur: 2.5,
+    def: { src: '', color: '#1a1520', luz: '#a855f7', fadeIn: 0.2, fadeOut: 0.2 },
+    campos: [['src', 'Logo en la caja', 'medio', 'imagen'], ['color', 'Color de la caja', 'color'], ['luz', 'Luz', 'color'], ...FADES] },
+  explica: { nombre: 'Tarjeta con dibujo', icono: '🪧', pista: 'FX', dur: 3,
+    def: { icono: '🚚', titulo: 'Monterrey', texto: 'El restante se lo pagas al chofer en efectivo', y: 760, color: '#a855f7', fadeIn: 0, fadeOut: 0.25 },
+    campos: [['icono', 'Dibujo (emoji)', 'texto'], ['titulo', 'Título', 'texto'], ['texto', 'Explicación', 'area'], ['y', 'Altura', 'rango', 200, 1700, 1], ['color', 'Color', 'color'], ...FADES] },
   caja: { nombre: 'Caja 3D', icono: '📦', pista: 'V2', dur: 2.5,
     def: { src: '', color: '#141416', brillo: '#a855f7', tam: 1, y: 1000, fadeIn: 0.15, fadeOut: 0.2 },
     campos: [['src', 'Logo en la caja', 'medio', 'imagen'], ['color', 'Color de la caja', 'color'], ['brillo', 'Anillo de luz', 'color'],
@@ -540,6 +548,17 @@ function dibVideo(c, lt) {
   const src = fuenteDe(c);
   const z = lerp(c.zoomIni, c.zoomFin, eInOut(clamp(lt / c.dur)));
   if (src) cubrir(src, 0, 0, W, H, z); else if (!medios[c.src]) relleno(0, 0, W, H, c.nota || 'Pon aquí tu video');
+  if (c.anillo) {   // halo de luz que gira encima del clip (como el anillo de la caja de Amazon)
+    const g = lt * 2.4, cx = W / 2, cy = H * 0.6;
+    ctx.save();
+    const r = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.6);
+    r.addColorStop(0, hexA(c.anillo, 0.28)); r.addColorStop(1, hexA(c.anillo, 0));
+    ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = c.anillo; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.shadowColor = c.anillo; ctx.shadowBlur = 45;
+    ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.4, W * 0.11, -0.1, g, g + Math.PI * 1.4); ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -642,7 +661,22 @@ function dibTexto(c, lt) {
     const yl = y0 + (lineas.length - 1) * lh + c.tam * 0.72;
     ctx.filter = 'none'; ctx.shadowColor = c.colorLinea; ctx.shadowBlur = 35;
     ctx.strokeStyle = c.colorLinea; ctx.lineWidth = Math.max(8, c.tam * 0.08); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(W / 2 - ancho / 2, yl); ctx.lineTo(W / 2 + ancho / 2, yl); ctx.stroke();
+    // se dibuja de izquierda a derecha con una curvita de sonrisa
+    const x0 = W / 2 - Math.min(W * 0.75, Math.max(...lineas.map(l => ctx.measureText(l).width))) / 2;
+    ctx.beginPath(); ctx.moveTo(x0, yl);
+    const xf = x0 + ancho, curva = Math.min(1, ancho / (W * 0.3)) * 18;
+    ctx.quadraticCurveTo((x0 + xf) / 2, yl + curva, xf, yl); ctx.stroke();
+    // punta brillante mientras avanza
+    if (k2 > 0 && k2 < 1) { ctx.beginPath(); ctx.arc(xf, yl, Math.max(8, c.tam * 0.06), 0, Math.PI * 2); ctx.fillStyle = '#fffbeb'; ctx.shadowBlur = 50; ctx.fill(); }
+    const m = medios[c.logoFin];
+    if (m && m.img && m.img.naturalWidth && k2 >= 1) {
+      const kl = eBack(clamp((lt - 1.15) / 0.45)), lg = logoSinFondo(m), w = c.tam * 1.3 * kl, h = w * lg.height / lg.width;
+      ctx.shadowColor = c.colorLinea; ctx.shadowBlur = 50;
+      ctx.drawImage(lg, xf + 20, yl - h * 0.75, w, h);
+      const fl = clamp(1 - Math.abs(lt - 1.35) / 0.25);   // destello
+      if (fl > 0) { const rg = ctx.createRadialGradient(xf + 20 + w / 2, yl - h * 0.25, 0, xf + 20 + w / 2, yl - h * 0.25, 220);
+        rg.addColorStop(0, `rgba(255,251,235,${0.9 * fl})`); rg.addColorStop(1, 'rgba(255,251,235,0)'); ctx.fillStyle = rg; ctx.fillRect(xf - 220, yl - 440, 700, 700); }
+    }
   }
   ctx.restore();
 }
@@ -938,7 +972,7 @@ const EDIFICIOS = (() => {
 })();
 function dibMapa(c, lt) {
   const a = alfa(c, lt);
-  const ruta = [[-2, 1.5], [-2, 4], [0, 4], [0, 7], [2, 7], [2, 10]];
+  const ruta = [[-1.5, 1], [-1.5, 3.5], [0, 3.5], [0, 6.5], [1.5, 6.5], [1.5, 9.5]];
   const lens = ruta.slice(1).map((p, i) => Math.hypot(p[0] - ruta[i][0], p[1] - ruta[i][1])), total = lens.reduce((x, y) => x + y, 0);
   const prog = eInOut(clamp((lt - 0.25) / (c.dur * 0.7)));
   let falta = total * prog;
@@ -949,7 +983,7 @@ function dibMapa(c, lt) {
   }
   const [hx, hz] = pts[pts.length - 1];
   // la cámara sigue la punta de la ruta, suave
-  const camX = hx * 0.7, camZ = hz - 3.4, F = 820, camH = 3.3, hor = 380;
+  const camX = Math.sin(lt * 0.35) * 0.9, camZ = -5 + eInOut(clamp(lt / c.dur)) * 1.2, F = 820, camH = 8.5, hor = 330;   // vista desde arriba, de lado (tercera persona)
   const P = (x, y, z) => { const zz = z - camZ; return zz < 0.3 ? null : { x: W / 2 + (x - camX) * F / zz, y: hor + (camH - y) * F / zz }; };
   ctx.save(); ctx.globalAlpha = a;
   const fondo = ctx.createLinearGradient(0, 0, 0, H);
@@ -959,12 +993,12 @@ function dibMapa(c, lt) {
   ctx.save();
   ctx.strokeStyle = 'rgba(90,180,255,.45)'; ctx.lineWidth = 2.2; ctx.shadowColor = '#3b9cff'; ctx.shadowBlur = 10;
   ctx.beginPath();
-  for (let x = -7; x <= 7; x++) { const p = P(x, 0, camZ + 0.4), q = P(x, 0, camZ + 12); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
-  for (let z = Math.ceil(camZ + 0.4); z <= camZ + 12; z++) { const p = P(-7, 0, z), q = P(7, 0, z); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
+  for (let x = -7; x <= 7; x++) { const p = P(x, 0, camZ + 0.4), q = P(x, 0, camZ + 16); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
+  for (let z = Math.ceil(camZ + 0.4); z <= camZ + 16; z++) { const p = P(-7, 0, z), q = P(7, 0, z); if (p && q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); } }
   ctx.stroke(); ctx.restore();
   // edificios (de atrás hacia adelante)
   for (const b of EDIFICIOS) {
-    if (b.z1 < camZ + 0.5 || b.z0 > camZ + 11) continue;
+    if (b.z1 < camZ + 0.5 || b.z0 > camZ + 16) continue;
     const q = (x, y, z) => P(x, y, z);
     const f0 = q(b.x0, 0, b.z0), f1 = q(b.x1, 0, b.z0), f2 = q(b.x1, b.h, b.z0), f3 = q(b.x0, b.h, b.z0);
     const t0 = q(b.x0, b.h, b.z1), t1 = q(b.x1, b.h, b.z1);
@@ -1003,10 +1037,21 @@ function dibMapa(c, lt) {
     ctx.restore();
     ctx.beginPath(); ctx.ellipse(pn.x, pn.y, 46 + sal, 14, 0, 0, Math.PI * 2); ctx.fillStyle = hexA(c.color, 0.35); ctx.fill();
   }
+  // pines fijos: de dónde sale y a dónde llega
+  const etiqueta = (x, z, txt, k) => {
+    const p = P(x, 0, z); if (!p || k <= 0) return;
+    ctx.save(); ctx.globalAlpha = a * k; ctx.font = `700 46px ${FUENTE}`; ctx.textAlign = 'center';
+    const w = ctx.measureText(txt).width + 44;
+    ctx.beginPath(); ctx.roundRect(p.x - w / 2, p.y - 150, w, 70, 35); ctx.fillStyle = 'rgba(20,16,30,.85)'; ctx.fill();
+    ctx.strokeStyle = hexA(c.color, 0.7); ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, p.x, p.y - 100); ctx.restore();
+  };
+  etiqueta(ruta[0][0], ruta[0][1], c.origen, clamp(lt / 0.4));
+  etiqueta(ruta[ruta.length - 1][0], ruta[ruta.length - 1][1], c.destino, clamp((prog - 0.85) / 0.15));
   // tarjeta de seguimiento (arriba)
   const pasos = String(c.pasos || '').split(',').map(x => x.trim()).filter(Boolean);
   if (pasos.length) {
-    const tw = 900, th = 270, tx = (W - tw) / 2, ty = 1380, kin = eOut(clamp((lt - 0.1) / 0.5));
+    const tw = 900, th = 270, tx = (W - tw) / 2, ty = 170, kin = eOut(clamp((lt - 0.1) / 0.5));
     ctx.save(); ctx.globalAlpha = a * kin; ctx.translate(0, (1 - kin) * 40);
     ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 40;
     ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 34); ctx.fillStyle = 'rgba(28,30,36,.82)'; ctx.fill();
@@ -1029,7 +1074,7 @@ function dibMapa(c, lt) {
 // Caja 3D que gira despacio, con el logo en el frente y un anillo de luz alrededor.
 function dibCaja(c, lt, t) {
   const a = alfa(c, lt), kin = eOut(clamp(lt / 0.7));
-  const yaw = -0.55 + lt * 0.45, pitch = 0.32, S = 230 * c.tam * (0.85 + 0.15 * kin);
+  const yaw = c.quieta ? -0.62 : -0.55 + lt * 0.45, pitch = c.quieta ? 0.22 : 0.32, S = 230 * c.tam * (0.85 + 0.15 * kin);
   const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
   const rot = ([x, y, z]) => { const x1 = x * cy + z * sy, z1 = -x * sy + z * cy; return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; };
   const pro = ([x, y, z]) => { const d = 5 / (5 + z); return { x: W / 2 + x * S * d, y: c.y + y * S * d * -1 + (1 - kin) * 120, z }; };
@@ -1048,7 +1093,7 @@ function dibCaja(c, lt, t) {
     ctx.beginPath(); ctx.ellipse(W / 2, c.y + S * 0.55, S * 1.55, S * 0.42, -0.08, desde, hasta); ctx.stroke(); ctx.restore();
   };
   const giro = lt * 2.2;
-  anillo(Math.PI + giro, Math.PI * 1.9 + giro);
+  if (!c.quieta) anillo(Math.PI + giro, Math.PI * 1.9 + giro);
   const luz = rot([0.4, 0.7, 0.6]);
   const ordenadas = caras.map(f => ({ ...f, z: f.v.reduce((s, i) => s + V[i][2], 0) / 4, nn: rot(f.n) })).filter(f => f.nn[2] < 0.05 || true).sort((x, y) => y.z - x.z);
   for (const f of ordenadas) {
@@ -1071,7 +1116,7 @@ function dibCaja(c, lt, t) {
       ctx.restore();
     }
   }
-  anillo(giro, Math.PI * 0.9 + giro);                    // parte de enfrente del anillo
+  if (!c.quieta) anillo(giro, Math.PI * 0.9 + giro);   // parte de enfrente del anillo
   ctx.restore();
 }
 
@@ -1090,7 +1135,7 @@ function acabadoCine(t) {
   b.filter = 'blur(10px) brightness(1.15) contrast(1.4)'; b.clearRect(0, 0, 270, 480); b.drawImage(lienzo, 0, 0, 270, 480); b.filter = 'none';
   ctx.save();
   ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = 0.32; ctx.drawImage(lienzoBrillo, 0, 0, W, H);
-  ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = 0.22; ctx.fillStyle = P.tono || '#ff9a3c'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = 0.22; ctx.fillStyle = P.tono || '#8b5cf6'; ctx.fillRect(0, 0, W, H);
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.72);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
@@ -1122,7 +1167,68 @@ function dibMarcas(c, lt) {
   ctx.restore();
 }
 
-const DIBUJAR = { marcas: dibMarcas, caja: dibCaja, mapa: dibMapa, sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
+// La caja en la puerta de tu casa (como el comercial de Amazon): puerta, piso de madera, luz desde arriba y la caja con tu logo.
+function dibPuerta(c, lt, t) {
+  const a = alfa(c, lt), z = 1 + eInOut(clamp(lt / c.dur)) * 0.07;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.translate(W / 2, H * 0.62); ctx.scale(z, z); ctx.translate(-W / 2, -H * 0.62);
+  const piso = 1240;
+  // pared
+  const pared = ctx.createLinearGradient(0, 0, 0, piso);
+  pared.addColorStop(0, '#0d0a12'); pared.addColorStop(1, '#1c1624');
+  ctx.fillStyle = pared; ctx.fillRect(0, 0, W, piso);
+  // puerta con marco
+  const dx = 250, dw = 560, dy = 250, dh = piso - dy;
+  ctx.fillStyle = '#2a2233'; ctx.fillRect(dx - 34, dy - 34, dw + 68, dh + 34);
+  const pg = ctx.createLinearGradient(dx, 0, dx + dw, 0);
+  pg.addColorStop(0, '#191320'); pg.addColorStop(1, '#241b2e');
+  ctx.fillStyle = pg; ctx.fillRect(dx, dy, dw, dh);
+  ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 4;
+  ctx.strokeRect(dx + 60, dy + 70, dw - 120, dh * 0.38); ctx.strokeRect(dx + 60, dy + 120 + dh * 0.38, dw - 120, dh * 0.42);
+  ctx.beginPath(); ctx.arc(dx + dw - 70, dy + dh * 0.55, 16, 0, Math.PI * 2); ctx.fillStyle = '#8b7aa0'; ctx.fill();
+  // piso de madera en perspectiva
+  ctx.fillStyle = '#17121c'; ctx.fillRect(0, piso, W, H - piso);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 3;
+  for (let i = -12; i <= 12; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 40, piso); ctx.lineTo(W / 2 + i * 260, H); ctx.stroke(); }
+  for (let k = 1; k < 8; k++) { const y = piso + (H - piso) * Math.pow(k / 8, 1.6); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // tapete
+  ctx.beginPath(); ctx.moveTo(W / 2 - 330, piso + 40); ctx.lineTo(W / 2 + 330, piso + 40); ctx.lineTo(W / 2 + 420, piso + 230); ctx.lineTo(W / 2 - 420, piso + 230); ctx.closePath();
+  ctx.fillStyle = '#211a29'; ctx.fill();
+  // cono de luz desde arriba
+  ctx.globalCompositeOperation = 'screen';
+  const cono = ctx.createRadialGradient(W / 2, piso + 80, 0, W / 2, piso + 80, 700);
+  cono.addColorStop(0, hexA(c.luz, 0.45)); cono.addColorStop(1, hexA(c.luz, 0));
+  ctx.fillStyle = cono; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+  // la caja, quieta, encima del tapete
+  dibCaja({ ...c, quieta: true, tam: 0.78, y: piso + 150, brillo: c.luz, fadeIn: 0, fadeOut: 0, dur: c.dur }, lt, t);
+}
+
+// Tarjeta tipo iOS con un dibujo grande (emoji), título y explicación; entra deslizándose.
+function dibExplica(c, lt) {
+  const k = eOut(clamp(lt / 0.55)), a = alfa(c, lt) * k;
+  const w = 940, x = (W - w) / 2 + (1 - k) * 160;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.font = `400 42px ${FUENTE}`;
+  const lineas = partir(c.texto, w - 260), h = Math.max(230, 140 + lineas.length * 54);
+  const y = c.y - h / 2;
+  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 40;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 40); ctx.fillStyle = 'rgba(30,24,40,.86)'; ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = hexA(c.color, 0.55); ctx.lineWidth = 3; ctx.stroke();
+  const ic = ctx.createRadialGradient(x + 120, c.y, 0, x + 120, c.y, 110);
+  ic.addColorStop(0, hexA(c.color, 0.55)); ic.addColorStop(1, hexA(c.color, 0));
+  ctx.fillStyle = ic; ctx.fillRect(x, y, 240, h);
+  ctx.font = `110px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+  ctx.fillText(c.icono, x + 120, c.y + 6);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = `800 56px ${FUENTE}`; ctx.fillText(c.titulo, x + 240, y + 92);
+  ctx.font = `400 42px ${FUENTE}`; ctx.fillStyle = '#d4d4d8';
+  lineas.forEach((l, i) => ctx.fillText(l, x + 240, y + 150 + i * 54));
+  ctx.restore();
+}
+
+const DIBUJAR = { puerta: dibPuerta, explica: dibExplica, marcas: dibMarcas, caja: dibCaja, mapa: dibMapa, sombra: dibSombra, fondo: dibFondo, video: dibVideo, celular: dibCelular, producto: dibProducto, texto: dibTexto, notificacion: dibNoti, boton: dibBoton, logo: dibLogo };
 
 function render(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1294,7 +1400,7 @@ async function exportarCuadros() {
   const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
   if (tocando) pausa();
   const fps = 30, dur = duracion(), n = Math.ceil(dur * fps), sr = 48000;
-  const cfgV = { codec: 'avc1.640028', width: W, height: H, bitrate: 12e6, framerate: fps };
+  const cfgV = { codec: 'avc1.640028', width: W, height: H, bitrate: 20e6, framerate: fps };
   if (!(await VideoEncoder.isConfigSupported(cfgV)).supported) cfgV.codec = 'avc1.4d0028';
   exportando = true; posterExp = null; $('bExportar').disabled = true; verVista('editor');
   $('progreso').style.display = 'block'; $('aviso').textContent = 'Mezclando el audio…';
@@ -1808,6 +1914,7 @@ $('fMedios').onchange = async e => {
 };
 document.querySelectorAll('[data-agregar]').forEach(b => b.onclick = () => agregar(b.dataset.agregar));
 $('selLook').onchange = e => { guardarHist(); P.look = e.target.value; cambio(); };
+$('colTono').oninput = e => { P.tono = e.target.value; render(tAct); autoguardar(); };
 $('zoomTL').oninput = e => { pps = +e.target.value; pintarTL(); };
 document.addEventListener('keydown', e => {
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
