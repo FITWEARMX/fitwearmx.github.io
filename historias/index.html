@@ -124,7 +124,7 @@ label>input,label>select{margin-top:6px}
         <p class="calc" id="calc"></p>
         <label>Precio antes, en pesos <span class="opt">(opcional, para ofertas: sale tachado)</span><input id="tAntes" inputmode="decimal" placeholder="Sin oferta" autocomplete="off"></label>
         <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tOrdena" checked style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span id="tOrdenaTxt">Poner “Ordena con $… MXN · tienes 3 semanas para liquidar”</span></label>
-        <label>Descripción <span class="opt">(opcional)</span><input id="tDesc" placeholder="ordena con $500 · líquidas en 2 semanas" autocomplete="off"></label>
+        <label>Descripción <span class="opt">(opcional)</span><input id="tDesc" placeholder="entrega inmediata · todas las tallas" autocomplete="off"></label>
         <div class="chips frases" id="frases"></div>
         <label>Etiqueta <span class="opt">(opcional)</span><input id="tEtiqueta" placeholder="PREVIEW RESTOCK 13 de octubre" autocomplete="off"></label>
         <div class="chips frases" id="etiquetas"></div>
@@ -449,7 +449,7 @@ const marca={negro:new Image(),crema:new Image()}; marca.negro.src=LOGO_NEGRO; m
 
 /* frases guardadas */
 const hoyMas=d=>{ const x=new Date(); x.setDate(x.getDate()+d); return x.getDate()+' de '+MESES[x.getMonth()]; };
-const FRASES=['ordena con $500','líquidas en 2 semanas','entrega inmediata','disp el '+hoyMas(1),'últimas piezas','todas las tallas'];
+const FRASES=['ordena con anticipo','líquidas en 2 semanas','entrega inmediata','disp el '+hoyMas(1),'últimas piezas','todas las tallas'];
 const ETIQ=['PREVIEW RESTOCK '+hoyMas(0),'PREVIEW','RESTOCK','NUEVO DROP','OFERTA','ÚLTIMAS PIEZAS','PREVENTA'];
 
 const PALETAS={
