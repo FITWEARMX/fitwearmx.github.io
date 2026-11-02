@@ -439,6 +439,7 @@ label>input,label>textarea,label>select{margin-top:6px}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="catalogo-inventario.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1474,6 +1475,8 @@ $('#btnPublicar').addEventListener('click',async()=>{
     estado('Guardando tus datos…');
     const datosSha=(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(datos),encoding:'utf-8'}})).sha;
     const feedSha=(await gh('/git/blobs',{method:'POST',body:{content:feedFacebook(datos),encoding:'utf-8'}})).sha;
+    // inventario central (catalogo-inventario.js): solo lo público, sin costos ni Early Access
+    const invSha=window.FWInventario?(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(FWInventario.armar(productos,{B,marcaOficial,precioColor,num})),encoding:'utf-8'}})).sha:null;
     // Solo se manda lo que cambió (fotos nuevas, fotos que ya no se usan y los datos) sobre la versión MÁS NUEVA de la tienda.
     // Mandar la lista completa (más de mil fotos) hacía que GitHub tardara de más y la rechazara.
     // Si mientras subías fotos cambió algo (por ejemplo una mejora de la página), se vuelve a leer y se intenta otra vez.
@@ -1487,7 +1490,8 @@ $('#btnPublicar').addEventListener('click',async()=>{
       const entradas=subidas.filter(x=>hay.get(x.path)!==x.sha)
         .concat([...hay.keys()].filter(p=>p.startsWith('fotos/')&&!usa.has(p)).map(p=>({path:p,mode:'100644',type:'blob',sha:null}))) // fotos que ya no se usan
         .concat(hay.get('datos.json')!==datosSha?[{path:'datos.json',mode:'100644',type:'blob',sha:datosSha}]:[])
-        .concat(hay.get('facebook.csv')!==feedSha?[{path:'facebook.csv',mode:'100644',type:'blob',sha:feedSha}]:[]);
+        .concat(hay.get('facebook.csv')!==feedSha?[{path:'facebook.csv',mode:'100644',type:'blob',sha:feedSha}]:[])
+        .concat(invSha&&hay.get('productos.json')!==invSha?[{path:'productos.json',mode:'100644',type:'blob',sha:invSha}]:[]);
       const nuevo=entradas.length?await gh('/git/trees',{method:'POST',body:{base_tree:baseSha,tree:entradas}}):{sha:baseSha};
       const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref2.object.sha]}});
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
