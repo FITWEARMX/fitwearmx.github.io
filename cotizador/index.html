@@ -106,6 +106,27 @@
   .breakdown-row.total .label, .breakdown-row.total .value { color: var(--text-main); font-weight: 700; }
   .solo-tuyo { margin-bottom: 0; padding-top: 16px; border-top: 1px dashed var(--border); }
   .value.bajo { color: #f87171; }
+  input[type="search"] {
+    width: 100%; background: var(--bg-card-2); border: 1px solid var(--border); color: var(--text-main);
+    font-size: 1rem; padding: 12px 14px; border-radius: var(--radius-sm); outline: none;
+  }
+  input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .resultados { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .resultados button, .colores button {
+    text-align: left; background: var(--bg-card-2); border: 1px solid var(--border); color: var(--text-main);
+    border-radius: var(--radius-sm); padding: 10px 12px; font-size: 0.9rem; cursor: pointer;
+  }
+  .resultados button small, .elegida small { color: var(--text-muted); }
+  .elegida { margin-top: 10px; padding: 12px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 0.9rem; }
+  .elegida .top { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+  .elegida .quitar { background: none; border: 0; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; }
+  .colores { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .colores button.activo { border-color: var(--accent); color: var(--accent); }
+  .tallas { margin-top: 8px; color: var(--text-muted); font-size: 0.85rem; }
+  .etiqueta { display: inline-block; margin-top: 8px; padding: 3px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+  .etiqueta.ya { background: rgba(52,211,153,0.15); color: var(--accent-2); }
+  .etiqueta.pre { background: var(--accent-soft); color: var(--accent); }
+  .etiqueta.ago { background: rgba(248,113,113,0.15); color: #f87171; }
   .foot { margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
 </style>
 </head>
@@ -119,6 +140,12 @@
   <div class="layout">
     <section class="card">
       <h2>📦 Datos de la prenda</h2>
+      <div class="field">
+        <label for="buscar">Elegir de mi tienda <span class="hint" id="tiendaEstado">Cargando…</span></label>
+        <input type="search" id="buscar" placeholder="Escribe el nombre o la marca" autocomplete="off">
+        <div class="resultados" id="resultados"></div>
+        <div class="elegida" id="elegida" hidden></div>
+      </div>
       <div class="field">
         <label for="costoProducto">Precio de la prenda <span class="hint">USD</span></label>
         <div class="input-wrap"><span class="prefix">$</span>
@@ -164,6 +191,7 @@
   <p class="foot">Versión sin conexión · no necesita internet ni Claude</p>
 </div>
 
+<script src="../comun/productos.js"></script>
 <script>
   /* FÓRMULAS:
      Precio MTY (MXN)   = USD * Tipo de cambio * 1.60, redondeado hacia arriba a 10
@@ -222,6 +250,79 @@
 
   ids.forEach(id => inputs[id].addEventListener('input', calcular));
   calcular();
+
+  /* Elegir de mi tienda: lee la copia pública del inventario (comun/productos.js → nube()).
+     Trae el precio en pesos; el dólar se saca con ÷ 28.8 (18 × 1.6), cortado a centavos
+     para que con TC 18 vuelva a dar el mismo precio de la tienda. */
+  const TIENDA_FACTOR = TC_BASE * FACTOR;
+  let productos = [], elegido = null, colorElegido = null;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const sinAcentos = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  function etiqueta(p) {
+    if (p.piezas > 0) return '<span class="etiqueta ya">Entrega inmediata</span>';
+    if (p.estado === 'agotado') return '<span class="etiqueta ago">Agotado</span>';
+    return '<span class="etiqueta pre">Preventa</span>';
+  }
+
+  function ponerPrecio(mxn) {
+    if (!mxn) return;
+    inputs.costoProducto.value = (Math.floor(mxn / TIENDA_FACTOR * 100) / 100).toFixed(2);
+    calcular();
+  }
+
+  function pintarElegido() {
+    const box = $('elegida');
+    if (!elegido) { box.hidden = true; box.innerHTML = ''; return; }
+    const p = elegido, c = colorElegido;
+    const tallas = c ? Object.entries(c.tallas || {}) : [];
+    const textoTallas = !c ? '' : tallas.length
+      ? 'Tallas: ' + tallas.map(([t, n]) => n > 0 ? `${esc(t)} (${n} en existencia)` : esc(t)).join(' · ')
+      : (c.agotado ? 'Este color está agotado' : 'Sin tallas anotadas');
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="top"><div><strong>${esc(p.nombre)}</strong><br><small>${esc(p.marca)} · ${esc(p.categoria)} · tienda ${moneda(c ? c.precio : p.precio)}</small></div>
+        <button type="button" class="quitar" id="quitarElegida" aria-label="Quitar">✕</button></div>
+      ${etiqueta(c || p)}
+      <div class="colores">${(p.colores || []).map((x, i) => `<button type="button" data-i="${i}" class="${x === c ? 'activo' : ''}">${esc(x.nombre)}</button>`).join('')}</div>
+      <div class="tallas">${textoTallas}</div>`;
+    $('quitarElegida').onclick = () => { elegido = colorElegido = null; pintarElegido(); };
+    box.querySelectorAll('.colores button').forEach(b => b.onclick = () => {
+      colorElegido = p.colores[+b.dataset.i];
+      ponerPrecio(colorElegido.precio || p.precio);
+      pintarElegido();
+    });
+  }
+
+  function elegir(p) {
+    elegido = p;
+    colorElegido = (p.colores || []).find(c => !c.agotado) || (p.colores || [])[0] || null;
+    ponerPrecio((colorElegido && colorElegido.precio) || p.precio);
+    $('buscar').value = ''; $('resultados').innerHTML = '';
+    pintarElegido();
+  }
+
+  $('buscar').addEventListener('input', () => {
+    const q = sinAcentos($('buscar').value.trim());
+    const box = $('resultados');
+    if (q.length < 2) { box.innerHTML = ''; return; }
+    const palabras = q.split(/\s+/);
+    const hallados = productos
+      .filter(p => { const t = sinAcentos(p.nombre + ' ' + p.marca + ' ' + (p.colores || []).map(c => c.nombre).join(' ')); return palabras.every(w => t.includes(w)); })
+      .sort((a, b) => (a.estado === 'agotado') - (b.estado === 'agotado'))
+      .slice(0, 8);
+    box.innerHTML = hallados.length
+      ? hallados.map((p, i) => `<button type="button" data-i="${i}">${esc(p.nombre)}<br><small>${esc(p.marca)} · ${moneda(p.precio)} · ${p.piezas > 0 ? 'Entrega inmediata' : p.estado === 'agotado' ? 'Agotado' : 'Preventa'}</small></button>`).join('')
+      : '<small style="color:var(--text-muted)">No encontré esa prenda</small>';
+    box.querySelectorAll('button').forEach(b => b.onclick = () => elegir(hallados[+b.dataset.i]));
+  });
+
+  (async () => {
+    const inv = window.FWProductos ? await window.FWProductos.nube() : null;
+    if (!inv) { $('tiendaEstado').textContent = 'Sin conexión: escribe el precio a mano'; return; }
+    productos = inv.productos || [];
+    $('tiendaEstado').textContent = `${productos.length} prendas`;
+  })();
 </script>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
