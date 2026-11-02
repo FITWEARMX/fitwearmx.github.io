@@ -283,6 +283,7 @@ input[type=range]{width:100%;accent-color:var(--ink);margin-top:6px}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="ped" id="ped" hidden><div class="ped-c" role="dialog" aria-modal="true" aria-labelledby="pedTit" id="pedC"></div></div>
 
+<script src="../comun/productos.js"></script>
 <script>
 (function(){
 'use strict';
@@ -309,6 +310,8 @@ let facturas=[], cur=null, dirty=false, userEdited=false;
 
 /* ---------- datos ---------- */
 function blankItem(){return {k:uid(),nombre:'',desc:'',talla:'M',precio:0,foto:null};}
+// inventario (comun/productos.js): la pieza que sale en una factura se resta del Catálogo; si se quita, regresa
+function invRegresa(it){ if(it&&it.inv&&window.FWProductos){ FWProductos.mover(it.inv.p,it.inv.c,it.inv.t,1); it.inv=null; } }
 function normalize(inv){
   inv.items=Array.isArray(inv.items)?inv.items:[];
   inv.items.forEach(it=>{if(!it.k) it.k=uid();});
@@ -492,7 +495,7 @@ itemsEl.addEventListener('input',e=>{
   const art=e.target.closest('.item'); if(!art) return; const it=cur.items[+art.dataset.i]; if(!it) return;
   const k=e.target.dataset.k, a=e.target.dataset.adj;
   if(k==='tallaOtra'){
-    const v=e.target.value.trim(); it.talla=v;
+    const v=e.target.value.trim(); it.talla=v; invRegresa(it);
     art.querySelectorAll('.chip').forEach(c=>{c.classList.remove('on');c.setAttribute('aria-pressed','false');});
     e.target.classList.toggle('on',!!v);
   } else if(k){ it[k]=e.target.value; }
@@ -503,6 +506,7 @@ itemsEl.addEventListener('click',e=>{
   const art=e.target.closest('.item'); if(!art) return; const i=+art.dataset.i, it=cur.items[i];
   const chip=e.target.closest('[data-talla]');
   if(chip){
+    if(it.inv&&it.inv.t!==chip.dataset.talla&&window.FWProductos){ const inv=it.inv; FWProductos.mover(inv.p,inv.c,inv.t,1).then(()=>FWProductos.mover(inv.p,inv.c,chip.dataset.talla,-1)).then(r=>{ if(r!==null) inv.t=chip.dataset.talla; else{ it.inv=null; toast('Ya no hay '+chip.dataset.talla+' en el Catálogo; esta prenda quedó sin descontar'); } changed(); }); }
     it.talla=chip.dataset.talla;
     art.querySelectorAll('.chip').forEach(c=>{const on=c===chip;c.classList.toggle('on',on);c.setAttribute('aria-pressed',String(on));});
     const o=art.querySelector('[data-k="tallaOtra"]'); o.value=''; o.classList.remove('on');
@@ -510,7 +514,7 @@ itemsEl.addEventListener('click',e=>{
   }
   if(e.target.closest('[data-a="del"]')){
     const old=it.foto&&it.foto.id;
-    cur.items.splice(i,1); renderItems(); changed();
+    invRegresa(it); cur.items.splice(i,1); renderItems(); changed();
     if(old) maybeDeleteAsset(old);
     toast('Prenda quitada');
   }
@@ -828,7 +832,7 @@ async function deleteInvoice(id){
   }catch(e){ toast('No se pudo eliminar la factura'); return; }
   facturas=facturas.filter(x=>x.id!==id);
   if(cur&&cur.id===id){ clearTimeout(saveTimer); dirty=false; cur=newInvoice(); renderAll(); }
-  (f.items||[]).forEach(i=>{ if(i.foto&&i.foto.id) maybeDeleteAsset(i.foto.id); });
+  (f.items||[]).forEach(i=>{ if(i.foto&&i.foto.id) maybeDeleteAsset(i.foto.id); invRegresa(i); });
   renderList(); toast('Factura eliminada');
 }
 $('#btnNueva').addEventListener('click',()=>{
@@ -931,7 +935,8 @@ function renderCat(){
 let catRows=[];
 $('#addCat').addEventListener('click',async()=>{
   const data=await leerCatalogo();
-  catProds=data?data.productos:[]; catFotos=data?data.fotos:[];
+  const nb=data||!window.FWProductos?null:await FWProductos.nube(); // sin Catálogo en este aparato: la copia pública
+  catProds=data?data.productos:nb?nb.productos:[]; catFotos=data?data.fotos:[];
   $('#catSearch').value=''; $('#catPick').hidden=true; $('#catList').hidden=false; renderCat();
   $('#catDrawer').hidden=false; document.body.style.overflow='hidden';
 });
@@ -953,10 +958,12 @@ $('#catTallas').addEventListener('click',async e=>{
   const {p,c}=catSel, f=catFoto(p,c.k);
   const it=Object.assign(blankItem(),{nombre:(p.nombre||'')+(c.nombre&&(p.colores||[]).length>1?' – '+c.nombre:''),desc:[p.descripcion,(p.colores||[]).length<=1?c.nombre:''].filter(Boolean).join(' · '),talla:b.dataset.ct,precio:(c.precio||p.precio)?String(c.precio||p.precio):''});
   if(f){ try{ const sm=await compress(f.blob,520,.72); it.foto={data:await toDataURL(sm.blob),zoom:1,x:.5,y:.5}; }catch(err){} }
+  let quedan=null;
+  if(p.estado==='disponible'&&b.dataset.ct&&window.FWProductos){ quedan=await FWProductos.mover(p.id,c.k,b.dataset.ct,-1); if(quedan!==null) it.inv={p:p.id,c:c.k,t:b.dataset.ct}; }
   const last=cur.items[cur.items.length-1];
   if(last&&!last.nombre&&!num(last.precio)&&!last.foto) cur.items[cur.items.length-1]=it; else cur.items.push(it);
   renderItems(); changed(); cerrarCat();
-  toast('Se agregó '+(p.nombre||'la prenda')+(b.dataset.ct?' talla '+b.dataset.ct:''));
+  toast('Se agregó '+(p.nombre||'la prenda')+(b.dataset.ct?' talla '+b.dataset.ct:'')+(quedan!==null?' · quedan '+quedan:''));
 });
 
 /* ---------- respaldo ---------- */
