@@ -426,6 +426,7 @@ g.Historia={dibujar,W,H};
 })(window);
 
 </script>
+<script src="../comun/productos.js"></script>
 <script>
 (function(){
 'use strict';
@@ -664,13 +665,15 @@ function fechaTxt(s,conHora){ const m=/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2
 let catProds=[], catFotos=[];
 async function abrirListaCatalogo(){
   const d=await abrirCatalogo(false);
-  if(!d){ toast('Todavía no tienes productos en tu Catálogo'); return; }
+  if(!d) return abrirListaTienda();
+  catNube=null; $('#catT').textContent='Tu Catálogo';
   catProds=await reqP(d.transaction('productos').objectStore('productos').getAll());
   catFotos=await reqP(d.transaction('fotos').objectStore('fotos').getAll()); d.close();
   $('#catQ').value=''; pintarListaCat(); $('#catDr').hidden=false;
 }
 const catURLs=[];
 function pintarListaCat(){
+  if(catNube) return pintarListaTienda();
   catURLs.splice(0).forEach(u=>URL.revokeObjectURL(u));
   const q=($('#catQ').value||'').toLowerCase().trim();
   const rows=catProds.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
@@ -681,9 +684,15 @@ function pintarListaCat(){
     :'<p class="note">'+(catProds.length?'Ningún producto coincide.':'Tu Catálogo está vacío.')+'</p>';
 }
 $('#btnDelCat').addEventListener('click',abrirListaCatalogo);
-$('#catQ').addEventListener('input',pintarListaCat);
+$('#catQ').addEventListener('input',()=>{ nubeSel=null; pintarListaCat(); });
 $('#catCerrar').addEventListener('click',()=>{ $('#catDr').hidden=true; });
-$('#catDr').addEventListener('click',e=>{ if(e.target.id==='catDr'){ $('#catDr').hidden=true; return; } const b=e.target.closest('[data-cat]'); if(b){ $('#catDr').hidden=true; cargarDeCatalogo(b.dataset.cat); } });
+$('#catDr').addEventListener('click',e=>{ if(e.target.id==='catDr'){ $('#catDr').hidden=true; return; } 
+  if(catNube){ const np=e.target.closest('[data-np]'), nc=e.target.closest('[data-nc]');
+    if(e.target.closest('[data-nback]')){ nubeSel=null; pintarListaCat(); return; }
+    if(np){ const p=catNube.find(x=>x.id===np.dataset.np); if(!p) return; if((p.colores||[]).length>1){ nubeSel=p; pintarListaCat(); $('#catLista').scrollTop=0; return; } $('#catDr').hidden=true; cargarDeTienda(p,(p.colores||[])[0]); return; }
+    if(nc&&nubeSel){ $('#catDr').hidden=true; cargarDeTienda(nubeSel,nubeSel.colores.find(c=>c.k===nc.dataset.nc)); return; }
+    return; }
+  const b=e.target.closest('[data-cat]'); if(b){ $('#catDr').hidden=true; cargarDeCatalogo(b.dataset.cat); } });
 async function cargarDeCatalogo(id,colorK){
   const d=await abrirCatalogo(false); if(!d){ toast('Todavía no tienes productos en tu Catálogo'); return; }
   const p=await reqP(d.transaction('productos').objectStore('productos').get(id));
@@ -724,7 +733,55 @@ async function cargarDeCatalogo(id,colorK){
   origen={catalogoId:p.id}; notaCat();
   pintarOpciones(); pintarSlots(); calcular(); previa(); toast('Listo: '+(p.nombre||'producto')+' desde tu Catálogo');
 }
-function notaCat(){ $('#catNota').textContent=origen&&origen.catalogoId?'✓ Este producto ya está en tu Catálogo.':''; $('#btnACat').hidden=!!(origen&&origen.catalogoId); }
+/* ---------- sin Catálogo en este aparato (celular): tu tienda en internet ----------
+   Lee la copia pública del inventario (comun/productos.js → nube()). Trae nombre, marca, precio,
+   colores, tallas y estado, pero no fotos: esas las pones tú. */
+let catNube=null, nubeSel=null; // nubeSel: prenda elegida, esperando que escojas el color
+async function abrirListaTienda(){
+  if(!window.FWProductos){ toast('Todavía no tienes productos en tu Catálogo'); return; }
+  toast('Abriendo tu tienda…');
+  const j=await FWProductos.nube();
+  if(!j||!(j.productos||[]).length){ toast('Sin internet no puedo leer tu tienda. Escribe los datos a mano.'); return; }
+  catNube=j.productos; nubeSel=null;
+  $('#catT').textContent='Tu tienda'; $('#catQ').value=''; pintarListaCat(); $('#catDr').hidden=false;
+}
+const enExistencia=x=>num(x&&x.piezas)>0;
+function etqNube(p,c){ return enExistencia(c||p)?'Entrega inmediata':(c?c.agotado:p.estado==='agotado')?'Agotado':'Preventa'; }
+function pintarListaTienda(){
+  const caro=x=>x.precio?'$'+Math.round(x.precio):'';
+  if(nubeSel){ const p=nubeSel;
+    $('#catLista').innerHTML='<p class="note">Elige el color de <b>'+esc(p.nombre)+'</b></p>'+
+      p.colores.map(c=>'<button type="button" class="cr" data-nc="'+esc(c.k)+'"><span class="ph"></span><div style="min-width:0"><b>'+esc(c.nombre||'Color')+'</b><small>'+esc(etqNube(p,c)+(enExistencia(c)?' · '+num(c.piezas)+' pzs':''))+'</small></div><span class="pr">'+caro(c)+'</span></button>').join('')+
+      '<button type="button" class="btn ghost sm" data-nback style="margin-top:10px">← Otra prenda</button>';
+    return; }
+  const q=($('#catQ').value||'').toLowerCase().trim();
+  const rows=catNube.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q)));
+  $('#catLista').innerHTML=rows.length?'<p class="note">Sin fotos: después pones las tuyas.</p>'+rows.slice(0,80).map(p=>{ const nc=(p.colores||[]).length;
+      return '<button type="button" class="cr" data-np="'+esc(p.id)+'"><span class="ph"></span><div style="min-width:0"><b>'+esc(p.nombre)+'</b><small>'+esc([p.marca,etqNube(p),nc>1?nc+' colores':''].filter(Boolean).join(' · '))+'</small></div><span class="pr">'+caro(p)+'</span></button>'; }).join('')+
+      (rows.length>80?'<p class="note">Hay '+rows.length+' prendas: escribe para buscar.</p>':'')
+    :'<p class="note">Ninguna prenda coincide.</p>';
+}
+function cargarDeTienda(p,c){
+  ordenaFijo='';
+  marcaOriginal=p.marca||''; $('#tLinea1').value=marcaOriginal.toLowerCase();
+  $('#tTitulo').value=(p.nombre||'').toUpperCase();
+  const pr=(c&&c.precio)||p.precio;
+  $('#tUsd').value=''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
+  $('#tLink').value='';
+  const et=etqNube(p,c), disp=et==='Entrega inmediata';
+  const ts=[]; (c?[c]:(p.colores||[])).forEach(x=>Object.entries(x.tallas||{}).forEach(([t,n])=>{ if((!disp||num(n)>0)&&!ts.includes(t)) ts.push(t); }));
+  $('#tOrdena').checked=et==='Preventa';
+  $('#tDesc').value=disp?(ts.length?'Tallas '+ts.join(' · ')+' · entrega inmediata':'entrega inmediata'):(ts.length?'Tallas '+ts.join(' · '):'');
+  $('#tEtiqueta').value=disp?'':et.toUpperCase();
+  { // si el color está más barato que el más caro de la prenda, es oferta (igual que con el Catálogo)
+    const pc=x=>(x&&x.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc)), v=c?pc(c):0;
+    ponerOferta(c&&v<mx?mx:0,c&&v<mx?'OFERTA -'+Math.round((1-v/mx)*100)+'%'+(disp&&ts.length&&ts.length<=2?' · SOLO '+ts.join(', '):''):'');
+  }
+  origen={catalogoId:p.id,tienda:true}; notaCat();
+  pintarOpciones(); pintarSlots(); calcular(); previa();
+  toast('Listo: '+(p.nombre||'prenda')+(c&&c.nombre?' ('+c.nombre+')':'')+' · ahora pon tus fotos');
+}
+function notaCat(){ $('#catNota').textContent=origen&&origen.catalogoId?(origen.tienda?'✓ Esta prenda salió de tu tienda.':'✓ Este producto ya está en tu Catálogo.'):''; $('#btnACat').hidden=!!(origen&&origen.catalogoId); }
 const uidC=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function blobDeImagen(im){ const w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,1400/Math.max(w,h)); const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s); c.getContext('2d').drawImage(im,0,0,c.width,c.height); return new Promise(r=>c.toBlob(r,'image/jpeg',.85)); }
 $('#btnACat').addEventListener('click',async()=>{
