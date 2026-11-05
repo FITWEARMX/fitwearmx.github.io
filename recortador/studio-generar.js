@@ -120,12 +120,9 @@ async function fotoPrenda(p, quitar) {
     const n = 'prenda-' + p.id + '-modelo.png';
     if (medios[n]) return { src: n, modelo: true };
     try {
-      estado('Buscando fotos con modelo…');
-      for (const f of p.colores[0].fotos.slice(0, 4)) {
-        const im = await cargarImagen(await (await fetch(tienda.base + f)).blob());
-        const png = await modeloEnSombra(im);
-        if (png) return { src: await agregarArchivo(new File([png], n, { type: 'image/png' }), n), modelo: true };
-      }
+      estado('Probando las fotos para recortar bien la prenda…');
+      const r = await mejorRecorte(p.id, p.colores[0].fotos);   // studio-recorte.js: prueba varias y se queda con la mejor
+      if (r) return { src: await agregarArchivo(new File([r.blob], n, { type: 'image/png' }), n), modelo: true };
     } catch (e) { console.warn('sin IA de modelo', e); }
   }
   return { src: await fotoSola(p, quitar), modelo: false };
