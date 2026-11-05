@@ -427,6 +427,7 @@ g.Historia={dibujar,W,H};
 
 </script>
 <script src="../comun/productos.js"></script>
+<script src="../comun/precios.js"></script>
 <script>
 (function(){
 'use strict';
@@ -512,8 +513,11 @@ function antesTxt(){ if(ordenaFijo) return ''; const a=num($('#tAntes').value), 
 function precioTxt(){ if(ordenaFijo) return ''; const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
 let raf=0;
 function previa(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>Historia.dibujar($('#pv'),opciones())); }
+// dólares tecleados a mano de una marca con impuesto (YoungLA): se les suma; lo que llega del Catálogo o la extensión ya lo trae
+let usdTecleado=false;
+function usdFinal(){ const u=num($('#tUsd').value); return usdTecleado?Math.round(u*FWPrecios.factor($('#tLinea1').value)*1e4)/1e4:u; }
 function calcular(){
-  const usd=num($('#tUsd').value);
+  const usd=usdFinal();
   if(!mxnManual) $('#tMxn').value=usd?pesos(usd):'';
   $('#calc').textContent=usd?('$'+usd+' × '+num(AJ.tc)+' × '+(1+num(AJ.margen)/100).toFixed(2)+' = $'+pesos(usd)+(mxnManual?' · usando tu precio':'')):'Escribe el precio en dólares y se calcula en pesos con tu tabulador.';
 }
@@ -555,7 +559,8 @@ document.addEventListener('click',e=>{
 ['tLinea1','tTitulo','tDesc','tEtiqueta'].forEach(id=>$('#'+id).addEventListener('input',previa));
 $('#tOrdena').addEventListener('change',previa);
 [['cTit','titulo'],['cPre','precio'],['cDes','desc'],['cFon','fondo'],['cEtq','etiqueta']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ st.colores=Object.assign({},st.colores||{},{[k]:$('#'+id).value}); LS.set('estilo',st); previa(); }));
-$('#tUsd').addEventListener('input',()=>{ calcular(); previa(); });
+$('#tUsd').addEventListener('input',()=>{ usdTecleado=true; calcular(); previa(); });
+$('#tLinea1').addEventListener('input',()=>{ calcular(); previa(); });
 $('#tMxn').addEventListener('input',()=>{ mxnManual=$('#tMxn').value.trim()!==''; calcular(); previa(); });
 $('#tAntes').addEventListener('input',previa);
 $('#tamFranja').addEventListener('input',e=>{ st.tamano=+e.target.value; $('#tamTxt').textContent=st.tamano+'%'; LS.set('estilo',st); previa(); });
@@ -596,7 +601,7 @@ $('#btnAgregar').addEventListener('click',async()=>{
 });
 $('#btnNueva').addEventListener('click',()=>{ ordenaFijo='';
   fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; mxnManual=false;
-  ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); origen=null; notaCat();
+  ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); usdTecleado=false; origen=null; notaCat();
   pintarSlots(); calcular(); previa(); toast('Lista para el siguiente producto');
 });
 async function guardarArchivos(files){
@@ -713,7 +718,7 @@ async function cargarDeCatalogo(id,colorK){
   marcaOriginal=p.marca||''; $('#tLinea1').value=marcaOriginal.toLowerCase();
   $('#tTitulo').value=(p.nombre||'').toUpperCase();
   const pr=(col&&col.precio)||p.precio;
-  $('#tUsd').value=(col&&col.costoUsd)||p.costoUsd||''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
+  usdTecleado=false; $('#tUsd').value=(col&&col.costoUsd)||p.costoUsd||''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
   $('#tLink').value=p.link||'';
   const e=estadoDe(p);
   $('#tOrdena').checked=e.b!=='disponible';
@@ -766,7 +771,7 @@ function cargarDeTienda(p,c){
   marcaOriginal=p.marca||''; $('#tLinea1').value=marcaOriginal.toLowerCase();
   $('#tTitulo').value=(p.nombre||'').toUpperCase();
   const pr=(c&&c.precio)||p.precio;
-  $('#tUsd').value=''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
+  usdTecleado=false; $('#tUsd').value=''; $('#tMxn').value=pr?Math.round(pr):''; mxnManual=!!pr;
   $('#tLink').value='';
   const et=etqNube(p,c), disp=et==='Entrega inmediata';
   const ts=[]; (c?[c]:(p.colores||[])).forEach(x=>Object.entries(x.tallas||{}).forEach(([t,n])=>{ if((!disp||num(n)>0)&&!ts.includes(t)) ts.push(t); }));
@@ -796,7 +801,7 @@ $('#btnACat').addEventListener('click',async()=>{
     const marcaTxt=$('#tLinea1').value.trim(), cap=t=>t.replace(/\b\w/g,c=>c.toUpperCase());
     const blobs=[]; for(const im of fs) blobs.push(await blobDeImagen(im));
     const fotoIds=blobs.map(()=>'f'+uidC());
-    const usd=num($('#tUsd').value), mxn=num($('#tMxn').value);
+    const usd=usdFinal(), mxn=num($('#tMxn').value);
     const marcaFinal=marcaOriginal&&marcaOriginal.toLowerCase()===marcaTxt.toLowerCase()?marcaOriginal:(marcaTxt?cap(marcaTxt):'');
     const prod={id,nombre:cap(nombre.toLowerCase()),marca:marcaFinal,categoria:'',linea:'',descripcion:'',link:$('#tLink').value.trim(),
       costoUsd:usd?String(usd):'',margen:'',precioManual:mxnManual&&mxn?String(mxn):'',oferta:'',estado,dropFecha:'',llegaFecha:'',
@@ -819,7 +824,7 @@ async function recibirProducto(d){
   if(!d) return;
   if(d.marca){ marcaOriginal=String(d.marca); $('#tLinea1').value=marcaOriginal.toLowerCase(); }
   if(d.nombre) $('#tTitulo').value=String(d.nombre).replace(/^\s*\d+\s*-\s*/,'').toUpperCase();
-  if(d.precioUsd){ $('#tUsd').value=num(d.precioUsd); mxnManual=false; }
+  if(d.precioUsd){ usdTecleado=false; $('#tUsd').value=num(d.precioUsd); mxnManual=false; }
   if(d.url) $('#tLink').value=d.url;
   if(d.descripcion!=null) $('#tDesc').value=d.descripcion;
   $('#tOrdena').checked=true; ordenaFijo=d.ordenaFijo?String(d.ordenaFijo):'';

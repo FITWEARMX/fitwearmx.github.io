@@ -92,6 +92,7 @@
   .field label { gap: 10px; }
   .field label span.hint { text-align: right; }
   .field label a { color: var(--accent); }
+  .field label.esYoungla { justify-content: flex-start; align-items: center; gap: 8px; margin: 10px 0 0; cursor: pointer; }
   .formula { margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted); }
   .final-price { margin-bottom: 16px; }
   .ordena {
@@ -150,6 +151,7 @@
         <label for="costoProducto">Precio de la prenda <span class="hint">USD</span></label>
         <div class="input-wrap"><span class="prefix">$</span>
           <input type="number" id="costoProducto" value="" placeholder="0" min="0" step="0.01" inputmode="decimal"></div>
+        <label class="esYoungla"><input type="checkbox" id="esYoungla"> Es YoungLA, sumar 8.25% de impuesto</label>
       </div>
       <div class="field">
         <label for="tipoCambio">Tipo de cambio del día <span class="hint">MXN por USD · <a href="#" id="tcReset">volver a 18</a></span></label>
@@ -161,7 +163,7 @@
         <div class="input-wrap"><span class="prefix">$</span>
           <input type="number" id="costoLogistica" value="" placeholder="0" min="0" step="0.01" inputmode="decimal"></div>
       </div>
-      <p class="formula">Precio MTY = USD × tipo de cambio × 1.60, redondeado hacia arriba a 10</p>
+      <p class="formula">Precio MTY = USD × tipo de cambio × 1.60, redondeado hacia arriba a 10. YoungLA: USD × 1.0825 primero.</p>
     </section>
 
     <section class="card">
@@ -192,9 +194,10 @@
 </div>
 
 <script src="../comun/productos.js"></script>
+<script src="../comun/precios.js"></script>
 <script>
   /* FÓRMULAS:
-     Precio MTY (MXN)   = USD * Tipo de cambio * 1.60, redondeado hacia arriba a 10
+     Precio MTY (MXN)   = USD * Tipo de cambio * 1.60, redondeado hacia arriba a 10 (YoungLA: USD * 1.0825 primero)
      Ordena con (MXN)   = 25% del precio, redondeado hacia arriba a 10 (en público nunca decir "25%")
      Paga al recibir    = Precio - anticipo + $90 de envío local (chofer)
      Te queda (MXN)     = Precio - (USD * Tipo de cambio + logística)  → solo para ti */
@@ -213,7 +216,7 @@
   }
 
   function calcular() {
-    const usd       = parseFloat(inputs.costoProducto.value) || 0;
+    const usd       = (parseFloat(inputs.costoProducto.value) || 0) * ($('esYoungla').checked ? FWPrecios.factor('YoungLA') : 1);
     const tc        = parseFloat(inputs.tipoCambio.value) || 0;
     const logistica = parseFloat(inputs.costoLogistica.value) || 0;
 
@@ -235,11 +238,13 @@
 
   inputs.tipoCambio.addEventListener('input', () => {
     try { localStorage.setItem(TC_KEY, inputs.tipoCambio.value); } catch (e) {}
+    repetirPrecioTienda();
   });
   $('tcReset').addEventListener('click', e => {
     e.preventDefault();
     inputs.tipoCambio.value = TC_BASE;
     try { localStorage.removeItem(TC_KEY); } catch (e) {}
+    repetirPrecioTienda();
     calcular();
   });
   $('btnCopiar').addEventListener('click', async () => {
@@ -249,12 +254,12 @@
   });
 
   ids.forEach(id => inputs[id].addEventListener('input', calcular));
+  $('esYoungla').addEventListener('change', calcular);
   calcular();
 
   /* Elegir de mi tienda: lee la copia pública del inventario (comun/productos.js → nube()).
-     Trae el precio en pesos; el dólar se saca con ÷ 28.8 (18 × 1.6), cortado a centavos
-     para que con TC 18 vuelva a dar el mismo precio de la tienda. */
-  const TIENDA_FACTOR = TC_BASE * FACTOR;
+     Trae el precio en pesos (ya con impuesto); el dólar se saca con el tipo de cambio de la pantalla × 1.6,
+     cortado a centavos, para que vuelva a dar el mismo precio de la tienda. */
   let productos = [], elegido = null, colorElegido = null;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const sinAcentos = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -266,9 +271,16 @@
   }
 
   function ponerPrecio(mxn) {
-    if (!mxn) return;
-    inputs.costoProducto.value = (Math.floor(mxn / TIENDA_FACTOR * 100) / 100).toFixed(2);
+    const factor = (parseFloat(inputs.tipoCambio.value) || 0) * FACTOR;
+    if (!mxn || !factor) return;
+    inputs.costoProducto.value = (Math.floor(mxn / factor * 100) / 100).toFixed(2);
+    $('esYoungla').checked = false;
     calcular();
+  }
+
+  // si elegiste una prenda de la tienda y cambias el dólar, su precio en pesos se queda igual
+  function repetirPrecioTienda() {
+    if (elegido) ponerPrecio((colorElegido && colorElegido.precio) || elegido.precio);
   }
 
   function pintarElegido() {
