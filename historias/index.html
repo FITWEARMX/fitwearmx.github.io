@@ -677,11 +677,17 @@ async function abrirListaCatalogo(){
   $('#catQ').value=''; pintarListaCat(); $('#catDr').hidden=false;
 }
 const catURLs=[];
+// Orden de las listas: primero por marca (en este orden; las demás al final) y dentro de cada marca lo más nuevo arriba.
+// La tienda no trae fechas: el id empieza con la hora en que se creó la prenda (p + Date.now() en base 36).
+const ORDEN_MARCAS=['gymshark','youngla','darc sport','civil regime','breathe divinity','controlled insanity','dfyne'];
+const posMarca=m=>{ const k=String(m||'').toLowerCase().replace(/\s+/g,' ').trim(), i=ORDEN_MARCAS.indexOf(k); return i<0?ORDEN_MARCAS.length:i; };
+const fechaProd=p=>p.updatedAt||p.createdAt||parseInt(String(p.id||'').replace(/^p/,'').slice(0,8),36)||0;
+const porMarca=(a,b)=>posMarca(a.marca)-posMarca(b.marca)||fechaProd(b)-fechaProd(a);
 function pintarListaCat(){
   if(catNube) return pintarListaTienda();
   catURLs.splice(0).forEach(u=>URL.revokeObjectURL(u));
   const q=($('#catQ').value||'').toLowerCase().trim();
-  const rows=catProds.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  const rows=catProds.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q))).sort(porMarca);
   $('#catLista').innerHTML=rows.length?rows.map(p=>{ const f=catFotos.find(x=>x.id===p.portada)||catFotos.find(x=>x.productoId===p.id); let img='<span class="ph"></span>';
       if(f&&f.blob){ const u=URL.createObjectURL(f.blob); catURLs.push(u); img='<img src="'+u+'" alt="">'; }
       const e=estadoDe(p), et=e.txt||{early:'Drop',preventa:'Preventa',camino:'En camino',disponible:'Disponible',agotado:'Agotado'}[e.b];
@@ -760,7 +766,7 @@ function pintarListaTienda(){
       '<button type="button" class="btn ghost sm" data-nback style="margin-top:10px">← Otra prenda</button>';
     return; }
   const q=($('#catQ').value||'').toLowerCase().trim();
-  const rows=catNube.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q)));
+  const rows=catNube.filter(p=>(p.nombre||'').trim()&&(!q||[p.nombre,p.marca,p.categoria].join(' ').toLowerCase().includes(q))).sort(porMarca);
   $('#catLista').innerHTML=rows.length?'<p class="note">Sin fotos: después pones las tuyas.</p>'+rows.slice(0,80).map(p=>{ const nc=(p.colores||[]).length;
       return '<button type="button" class="cr" data-np="'+esc(p.id)+'"><span class="ph"></span><div style="min-width:0"><b>'+esc(p.nombre)+'</b><small>'+esc([p.marca,etqNube(p),nc>1?nc+' colores':''].filter(Boolean).join(' · '))+'</small></div><span class="pr">'+caro(p)+'</span></button>'; }).join('')+
       (rows.length>80?'<p class="note">Hay '+rows.length+' prendas: escribe para buscar.</p>':'')
