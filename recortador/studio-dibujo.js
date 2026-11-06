@@ -161,12 +161,16 @@ function dibCelular(c, lt, t) {
 }
 
 function dibTexto(c, lt) {
-  const k = eOut(clamp(lt / 0.7));
+  const k = c.entrada === 'nada' || c.entrada === 'golpe' ? 1 : eOut(clamp(lt / 0.7));
   ctx.save();
-  ctx.globalAlpha = alfa(c, lt) * k;
+  ctx.globalAlpha = alfa(c, lt) * k * (c.entrada === 'golpe' ? clamp(lt / 0.05) : 1);
+  if (c.entrada === 'golpe') {   // entra de golpe: grande a su tamaño, se lee desde el primer momento
+    const zg = lerp(1.22, 1, eOut(clamp(lt / 0.2)));
+    ctx.translate(W / 2, c.y); ctx.scale(zg, zg); ctx.translate(-W / 2, -c.y);
+  }
   if (k < 1) ctx.filter = `blur(${(1 - k) * 18}px)`;
-  ctx.font = `${c.peso} ${c.tam}px ${FUENTE}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${-c.tam * 0.025}px`;
+  ctx.font = `${c.italica === 'si' ? 'italic ' : ''}${c.peso} ${c.tam}px ${FUENTE}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${c.tam * (c.espacio ?? -0.025)}px`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = c.color;
   if (c.brillo) { ctx.shadowColor = c.brillo; ctx.shadowBlur = 45; }
   const lineas = partir(c.texto, W - 120), lh = c.tam * 1.08;

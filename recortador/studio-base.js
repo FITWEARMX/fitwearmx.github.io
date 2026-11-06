@@ -82,7 +82,7 @@ const TIPOS = {
     campos: [['src', 'Logo en la caja', 'medio', 'imagen'], ['color', 'Color de la caja', 'color'], ['luz', 'Luz', 'color'], ...FADES] },
   explica: { nombre: 'Tarjeta con dibujo', icono: '🪧', pista: 'FX', dur: 3,
     def: { icono: '🚚', titulo: 'Monterrey', texto: 'El restante se lo pagas al chofer en efectivo', y: 760, color: '#a855f7', fadeIn: 0, fadeOut: 0.25 },
-    campos: [['icono', 'Dibujo (emoji)', 'texto'], ['titulo', 'Título', 'texto'], ['texto', 'Explicación', 'area'], ['y', 'Altura', 'rango', 200, 1700, 1], ['color', 'Color', 'color'], ...FADES] },
+    campos: [['icono', 'Dibujo (emoji)', 'texto'], ['titulo', 'Título', 'texto'], ['texto', 'Explicación', 'area'], ['y', 'Altura', 'rango', 200, 1700, 1], ['escala', 'Tamaño', 'rango', 0.5, 1, 0.01], ['color', 'Color', 'color'], ...FADES] },
   caja: { nombre: 'Caja 3D', icono: '📦', pista: 'V2', dur: 2.5,
     def: { src: '', color: '#141416', brillo: '#a855f7', tam: 1, y: 1000, fadeIn: 0.15, fadeOut: 0.2 },
     campos: [['src', 'Logo en la caja', 'medio', 'imagen'], ['color', 'Color de la caja', 'color'], ['brillo', 'Anillo de luz', 'color'],

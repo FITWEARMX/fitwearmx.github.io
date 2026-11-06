@@ -254,6 +254,8 @@ function dibExplica(c, lt) {
   const k = eOut(clamp(lt / 0.55)), a = alfa(c, lt) * k;
   const w = 940, x = (W - w) / 2 + (1 - k) * 160;
   ctx.save(); ctx.globalAlpha = a;
+  const esc = c.escala || 1;   // tarjeta más chica para que se vea lo de atrás
+  ctx.translate(W / 2, c.y); ctx.scale(esc, esc); ctx.translate(-W / 2, -c.y);
   ctx.font = `400 42px ${FUENTE}`;
   const lineas = partir(c.texto, w - 260), h = Math.max(230, 140 + lineas.length * 54);
   const y = c.y - h / 2;
@@ -289,7 +291,7 @@ function render(t) {
     for (const c of P.clips) {
       if (c.pista !== p.id || t < c.ini || t >= c.ini + c.dur) continue;
       const f = DIBUJAR[c.tipo];
-      if (f) { ctx.save(); f(c, t - c.ini, t); ctx.restore(); }
+      if (f) { ctx.save(); if (c.mx || c.my) ctx.translate(c.mx || 0, c.my || 0); f(c, t - c.ini, t); ctx.restore(); }
     }
   }
   acabadoCine(t);
