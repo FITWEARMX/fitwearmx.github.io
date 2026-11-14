@@ -1431,6 +1431,7 @@ function feedFacebook(datos){
   const mx=v=>Number(v||0).toFixed(2)+' MXN';
   const filas=[['id','item_group_id','title','description','availability','condition','price','sale_price','link','image_link','additional_image_link','brand','color','gender','age_group','google_product_category']];
   for(const p of datos.productos){
+    if(p.estado==='early') continue; // Early Access: se ve en la tienda, pero no en Facebook ni Instagram
     for(const c of p.colores||[]){
       const fotos=(c.fotos||[]); if(!fotos.length) continue;
       const pr=Number(c.precio||p.precio||0), antes=Number(c.precioAntes||0); if(!pr) continue;
