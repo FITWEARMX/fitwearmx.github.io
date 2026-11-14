@@ -15,7 +15,7 @@ function armar(productos,h){
     const colores=(p.colores||[]).map(c=>{
       const tallas={}; Object.keys(c.tallas||{}).sort(orden).forEach(t=>{ tallas[t]=Math.max(0,h.num(c.tallas[t])); });
       const piezas=Object.values(tallas).reduce((a,b)=>a+b,0);
-      return {k:c.k,nombre:c.nombre||'',precio:h.precioColor(p,c),agotado:!!c.agotado,tallas,piezas};
+      return {k:c.k,nombre:c.nombre||'',precio:h.precioColor(p,c),precioAntes:h.precioAntes?h.precioAntes(p,c):0,agotado:!!c.agotado,tallas,piezas};
     });
     lista.push({id:p.id,nombre,marca:h.marcaOficial(p),categoria:p.categoria||'',linea:p.linea||'',estado:est,
       precio:colores[0]?colores[0].precio:0,piezas:colores.reduce((a,c)=>a+c.piezas,0),colores});

@@ -1482,7 +1482,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
     const datosSha=(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(datos),encoding:'utf-8'}})).sha;
     const feedSha=(await gh('/git/blobs',{method:'POST',body:{content:feedFacebook(datos),encoding:'utf-8'}})).sha;
     // inventario central (catalogo-inventario.js): solo lo público, sin costos ni Early Access
-    const invSha=window.FWInventario?(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(FWInventario.armar(productos,{B,marcaOficial,precioColor,num})),encoding:'utf-8'}})).sha:null;
+    const invSha=window.FWInventario?(await gh('/git/blobs',{method:'POST',body:{content:JSON.stringify(FWInventario.armar(productos,{B,marcaOficial,precioColor,precioAntes:precioAntesColor,num})),encoding:'utf-8'}})).sha:null;
     // Solo se manda lo que cambió (fotos nuevas, fotos que ya no se usan y los datos) sobre la versión MÁS NUEVA de la tienda.
     // Mandar la lista completa (más de mil fotos) hacía que GitHub tardara de más y la rechazara.
     // Si mientras subías fotos cambió algo (por ejemplo una mejora de la página), se vuelve a leer y se intenta otra vez.
