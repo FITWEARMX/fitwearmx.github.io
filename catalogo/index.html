@@ -483,10 +483,14 @@ function base(e){ if(ESTADO_TXT[e]) return e; const x=extras().find(x=>x.id===e)
 function B(p){ return base(p&&p.estado); }
 function estTxt(e){ if(ESTADO_TXT[e]) return ESTADO_TXT[e]; const x=extras().find(x=>x.id===e); return x?x.nombre:'Disponible'; }
 function guardarAjustes(){ try{ localStorage.setItem(AJ_KEY,JSON.stringify(AJ)); }catch(e){} }
-function precioCalc(p){
+/* Ganancia mínima en pesos por prenda (16-nov-2026): por producto (p.minGanancia) o por marca (Ajustes).
+   Gymshark: nunca menos de $250 de ganancia. No se aplica al precio de antes (tachado). */
+const MIN_GANANCIA_MARCA={Gymshark:250};
+function minGanancia(p){ if(has(p.minGanancia)) return num(p.minGanancia); const t=Object.assign({},MIN_GANANCIA_MARCA,AJ.minGanancia||{}); return num(t[p.marca]||0); }
+function precioCalc(p,sinMin){
   const usd=num(p.costoUsd); if(!usd) return 0;
   const m=has(p.margen)?num(p.margen):num(AJ.margen), r=num(AJ.red)||1;
-  const v=usd*num(AJ.tc)*(1+m/100);
+  const v=Math.max(usd*num(AJ.tc)*(1+m/100), sinMin?0:usd*num(AJ.tc)+minGanancia(p));
   return Math.ceil(v/r-1e-9)*r;
 }
 function precioDe(p){ return has(p.precioManual)?num(p.precioManual):precioCalc(p); }
@@ -495,7 +499,7 @@ function precioVenta(p){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):pre
 function precioColorBase(p,c){ return c&&has(c.costoUsd)?precioCalc(Object.assign({},p,{costoUsd:c.costoUsd})):precioDe(p); }
 function precioColor(p,c){ return has(p.oferta)&&num(p.oferta)>0?num(p.oferta):precioColorBase(p,c); }
 /* Precio de antes de la rebaja de la marca (lo guarda la extensión); 0 si no hay rebaja */
-function precioAntesColor(p,c){ const v=c&&has(c.antesUsd)?precioCalc(Object.assign({},p,{costoUsd:c.antesUsd})):0; return v>precioColor(p,c)?v:0; }
+function precioAntesColor(p,c){ const v=c&&has(c.antesUsd)?precioCalc(Object.assign({},p,{costoUsd:c.antesUsd}),true):0; return v>precioColor(p,c)?v:0; }
 function rangoPrecios(p){ const v=(p.colores||[]).map(c=>precioColor(p,c)).filter(x=>x>0); return v.length?[Math.min(...v),Math.max(...v)]:[precioVenta(p),precioVenta(p)]; }
 function sellarPrecios(p){ let cambio=false; const nv=precioVenta(p); if(nv!==p.precio){ p.precio=nv; cambio=true; }
   (p.colores||[]).forEach(c=>{ const v=precioColor(p,c), a=precioAntesColor(p,c); if(v!==c.precio||a!==(c.precioAntes||0)){ c.precio=v; c.precioAntes=a; cambio=true; } }); return cambio; }
