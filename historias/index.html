@@ -123,6 +123,7 @@ label>input,label>select{margin-top:6px}
         </div>
         <p class="calc" id="calc"></p>
         <label>Precio antes, en pesos <span class="opt">(opcional, para ofertas: sale tachado)</span><input id="tAntes" inputmode="decimal" placeholder="Sin oferta" autocomplete="off"></label>
+        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tBF" style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span>Black Friday −25% <span class="opt">(con dólares escritos a mano: el precio normal sale tachado y abajo el nuevo)</span></span></label>
         <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tOrdena" checked style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span id="tOrdenaTxt">Poner “Ordena con $… MXN · tienes 3 semanas para liquidar”</span></label>
         <label>Descripción <span class="opt">(opcional)</span><input id="tDesc" placeholder="entrega inmediata · todas las tallas" autocomplete="off"></label>
         <div class="chips frases" id="frases"></div>
@@ -520,6 +521,9 @@ function calcular(){
   const usd=usdFinal();
   if(!mxnManual) $('#tMxn').value=usd?pesos(usd):'';
   $('#calc').textContent=usd?('$'+usd+' × '+num(AJ.tc)+' × '+(1+num(AJ.margen)/100).toFixed(2)+' = $'+pesos(usd)+(mxnManual?' · usando tu precio':'')):'Escribe el precio en dólares y se calcula en pesos con tu tabulador.';
+  // Black Friday: el precio normal sale tachado y el nuevo es 25% menos, arriba a decenas ("Ordena con" sale del nuevo)
+  if(usd&&!mxnManual&&usdTecleado&&$('#tBF').checked){ const r=num(AJ.red)||1, antes=pesos(usd), desp=Math.ceil(antes*.75/r-1e-9)*r;
+    $('#tMxn').value=desp; ponerOferta(antes,'BLACK FRIDAY -25%'); $('#calc').textContent+=' · Black Friday −25%: $'+desp; }
 }
 
 /* fotos */
@@ -560,6 +564,7 @@ document.addEventListener('click',e=>{
 $('#tOrdena').addEventListener('change',previa);
 [['cTit','titulo'],['cPre','precio'],['cDes','desc'],['cFon','fondo'],['cEtq','etiqueta']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ st.colores=Object.assign({},st.colores||{},{[k]:$('#'+id).value}); LS.set('estilo',st); previa(); }));
 $('#tUsd').addEventListener('input',()=>{ usdTecleado=true; calcular(); previa(); });
+$('#tBF').addEventListener('change',()=>{ calcular(); if(!$('#tBF').checked) ponerOferta(0,''); previa(); });
 $('#tLinea1').addEventListener('input',()=>{ calcular(); previa(); });
 $('#tMxn').addEventListener('input',()=>{ mxnManual=$('#tMxn').value.trim()!==''; calcular(); previa(); });
 $('#tAntes').addEventListener('input',previa);
@@ -601,7 +606,7 @@ $('#btnAgregar').addEventListener('click',async()=>{
 });
 $('#btnNueva').addEventListener('click',()=>{ ordenaFijo='';
   fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; mxnManual=false;
-  ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); usdTecleado=false; origen=null; notaCat();
+  ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); $('#tBF').checked=false; usdTecleado=false; origen=null; notaCat();
   pintarSlots(); calcular(); previa(); toast('Lista para el siguiente producto');
 });
 async function guardarArchivos(files){
@@ -785,7 +790,7 @@ function cargarDeTienda(p,c){
   $('#tDesc').value=disp?(ts.length?'Tallas '+ts.join(' · ')+' · entrega inmediata':'entrega inmediata'):(ts.length?'Tallas '+ts.join(' · '):'');
   $('#tEtiqueta').value=disp?'':et.toUpperCase();
   { // si el color está más barato que el más caro de la prenda, es oferta (igual que con el Catálogo)
-    const pc=x=>(x&&x.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc)), v=c?pc(c):0;
+    const pc=x=>(x&&x.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc),(c&&c.precioAntes)||0), v=c?pc(c):0;
     ponerOferta(c&&v<mx?mx:0,c&&v<mx?'OFERTA -'+Math.round((1-v/mx)*100)+'%'+(disp&&ts.length&&ts.length<=2?' · SOLO '+ts.join(', '):''):'');
   }
   origen={catalogoId:p.id,tienda:true}; notaCat();
@@ -831,13 +836,15 @@ async function recibirProducto(d){
   if(d.marca){ marcaOriginal=String(d.marca); $('#tLinea1').value=marcaOriginal.toLowerCase(); }
   if(d.nombre) $('#tTitulo').value=String(d.nombre).replace(/^\s*\d+\s*-\s*/,'').toUpperCase();
   if(d.precioUsd){ usdTecleado=false; $('#tUsd').value=num(d.precioUsd); mxnManual=false; }
+  // precio ya hecho en pesos (robot del Black Friday): se respeta tal cual, sin tabulador
+  if(d.precioMxn){ usdTecleado=false; $('#tBF').checked=false; $('#tUsd').value=''; $('#tMxn').value=Math.round(num(d.precioMxn)); mxnManual=true; }
   if(d.url) $('#tLink').value=d.url;
   if(d.descripcion!=null) $('#tDesc').value=d.descripcion;
   $('#tOrdena').checked=true; ordenaFijo=d.ordenaFijo?String(d.ordenaFijo):'';
   origen=null; notaCat();
   calcular();
-  ponerOferta(d.precioAntesUsd?pesos(d.precioAntesUsd):0,d.etiqueta||'');
-  if(d.etiqueta&&!d.precioAntesUsd) $('#tEtiqueta').value=String(d.etiqueta).toUpperCase(); // etiqueta normal (por ejemplo EARLY ACCESS · 27 OCT)
+  ponerOferta(d.precioAntesMxn?Math.round(num(d.precioAntesMxn)):(d.precioAntesUsd?pesos(d.precioAntesUsd):0),d.etiqueta||'');
+  if(d.etiqueta&&!d.precioAntesUsd&&!d.precioAntesMxn) $('#tEtiqueta').value=String(d.etiqueta).toUpperCase(); // etiqueta normal (por ejemplo EARLY ACCESS · 27 OCT)
   // el acomodo se adapta a las fotos que lleguen: 1, 2, 3 o 4 (nunca cuadros vacíos)
   if((d.fotos||[]).length){ st.diseno=String(Math.min(4,d.fotos.length)); LS.set('estilo',st); fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; pintarOpciones(); }
   const srcs=(d.fotos||[]).slice(0,n()); let ok=0;
@@ -874,6 +881,7 @@ document.fonts&&document.fonts.ready.then(previa);
 leerHash(); leerCatHash();
 })();
 </script>
+<script src="robot-bf.js"></script>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
 </script>
