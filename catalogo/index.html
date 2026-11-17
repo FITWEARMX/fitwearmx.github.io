@@ -1509,7 +1509,12 @@ $('#btnPublicar').addEventListener('click',async()=>{
         .concat(hay.get('datos.json')!==datosSha?[{path:'datos.json',mode:'100644',type:'blob',sha:datosSha}]:[])
         .concat(hay.get('facebook.csv')!==feedSha?[{path:'facebook.csv',mode:'100644',type:'blob',sha:feedSha}]:[])
         .concat(invSha&&hay.get('productos.json')!==invSha?[{path:'productos.json',mode:'100644',type:'blob',sha:invSha}]:[]);
-      const nuevo=entradas.length?await gh('/git/trees',{method:'POST',body:{base_tree:baseSha,tree:entradas}}):{sha:baseSha};
+      // en tandas de 200: GitHub rechaza ("input was too large") si van más de mil fotos de una vez
+      let nuevo={sha:baseSha};
+      for(let i=0;i<entradas.length;i+=200){
+        estado('Guardando cambios… '+Math.min(i+200,entradas.length)+' de '+entradas.length);
+        nuevo=await gh('/git/trees',{method:'POST',body:{base_tree:nuevo.sha,tree:entradas.slice(i,i+200)}});
+      }
       const c=await gh('/git/commits',{method:'POST',body:{message:'Actualizar tienda ('+datos.productos.length+' productos)',tree:nuevo.sha,parents:[ref2.object.sha]}});
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
       catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
