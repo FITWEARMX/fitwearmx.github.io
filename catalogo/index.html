@@ -1131,6 +1131,7 @@ function pintarEaCol(){ const cs=colsCatalogo();
   $('#eaCol').innerHTML=cs.length?'<option value="">— Elige la colección —</option>'+cs.map((c,i)=>'<option value="'+i+'">'+esc(c.col)+' ('+esc(c.marca)+') · '+c.ps.length+' productos'+(c.ps.every(p=>B(p)==='early')?' · ya en Early Access':'')+'</option>').join(''):'<option value="">No tienes colecciones guardadas</option>';
   $('#eaColClave').value=''; $('#eaColFecha').value=''; }
 // borrar un drop completo (catalogo-drops.js)
+window.FWAutoPubH={cfg:CFG,productos:()=>productos,base:B,leerGH:()=>leerGH(),gh:()=>GH}; // para catalogo-autopub.js
 const DROPS_H={productos:()=>productos,marca:marcaOficial,coleccion:coleccionOficial,esc,toast,blobToData:b=>blobToData(b),guardarArchivo:f=>compartirArchivo(f),
   fotosDe:pid=>reqP(db.transaction('fotos').objectStore('fotos').index('productoId').getAll(pid)),delProducto,refrescar:async()=>{ productos=await getAll('productos'); await refreshList(); pintarEaCol(); }};
 function abrirAj(){ pintarGH(); pintarClaves(); pintarEaCol(); if(window.FWDrops) FWDrops.pintar(DROPS_H); $('#ajTc').value=AJ.tc; $('#ajMargen').value=AJ.margen; $('#ajRed').value=String(AJ.red); updateBackupWarn(); $('#aj').hidden=false; }
@@ -1607,6 +1608,7 @@ function toast(s){ const el=$('#toast'); el.textContent=s; el.classList.add('on'
 })();
 })();
 </script>
+<script src="catalogo-autopub.js"></script>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
 </script>
