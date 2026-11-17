@@ -53,6 +53,8 @@
     if(falta>0){ est('📝 Hay cambios. Publico sola a las '+hora(ult+ESPERA)+' si ya no editas.'); return; }
     if(o.ultima&&Date.now()-o.ultima<15*60*1000){ est('⏳ Ya publiqué sola a las '+hora(o.ultima)+'; espero 15 min para la siguiente.'); return; }
     if(ps.length<vivo.n-MAX_MENOS){ est('🛑 No publiqué sola: aquí hay '+ps.length+' productos y en tu tienda '+vivo.n+'. Revisa y, si está bien, pícale “Publicar tienda”.'); return; }
+    const rep=window.FWRevisor?window.FWRevisor.revisar():[];
+    if(rep.length){ est('🛑 No publiqué sola: el robot revisor encontró '+rep.length+(rep.length===1?' prenda repetida':' prendas repetidas')+'. Pícale “🔎 Revisar repetidos y precios”.'); return; }
     est('🚀 Publicando sola…'); o.ultima=Date.now(); guarda(o);
     btn.click();
     // al terminar, vuelve a leer la tienda
