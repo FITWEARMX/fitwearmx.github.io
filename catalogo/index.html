@@ -1192,6 +1192,8 @@ async function gh(path,opt,intento){
     // GitHub limita cuántos archivos se suben por minuto: espera lo que pida y sigue (hasta 4 veces)
     if((r.status===429||(r.status===403&&/rate limit|abuse/i.test(m)))&&intento<4){
       await esperar(Math.max(30,+r.headers.get('retry-after')||60),'GitHub pidió una pausa; sigo en'); return gh(path,opt,intento+1); }
+    // falla de GitHub (500, 502, 503…): no es tu internet; espera y reintenta hasta 6 veces
+    if(r.status>=500&&intento<6){ await esperar(20+intento*20,'GitHub falló un momento; reintento en'); return gh(path,opt,intento+1); }
     throw {status:r.status,msg:m}; }
   return r.status===204?null:r.json();
 }
@@ -1475,12 +1477,16 @@ $('#btnPublicar').addEventListener('click',async()=>{
     const tree=await gh('/git/trees/'+commit.tree.sha+'?recursive=1');
     const remoto=new Map((tree.tree||[]).filter(e=>e.type==='blob').map(e=>[e.path,e]));
     const {datos,fotos}=await armarTienda();
+    const SUB_KEY=CFG.db+'_fotosSubidas'; let subidasAntes={}; try{ subidasAntes=JSON.parse(localStorage.getItem(SUB_KEY)||'{}'); }catch(e){}
+    const guardarSubidas=()=>{ try{ localStorage.setItem(SUB_KEY,JSON.stringify(subidasAntes)); }catch(e){} };
     const subidas=[]; let n=0;
     for(const f of fotos){
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
-      let sha=ya&&ya.sha;
-      if(!sha){ const bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha; await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
+      // si una publicación anterior se cortó, las fotos que ya subió se reusan (no se vuelven a subir)
+      let sha=(ya&&ya.sha)||subidasAntes[f.path];
+      if(!sha){ const bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha;
+        subidasAntes[f.path]=sha; guardarSubidas(); await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
       subidas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
     estado('Guardando tus datos…');
@@ -1509,6 +1515,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
     }
     estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privados?' + '+datos.privados.map(g=>g.n+' de '+(g.marca||'Early Access')).join(' y ')+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
+    try{ localStorage.removeItem(CFG.db+'_fotosSubidas'); }catch(e){}
     toast('Tienda publicada');
   }catch(e){
     const s=e&&e.status;
