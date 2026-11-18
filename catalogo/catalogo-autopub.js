@@ -50,7 +50,9 @@
     const cambio=ult>vivo.actualizado||ps.length!==vivo.n;
     if(!cambio){ est('✅ Tu tienda está al día (publicada '+hora(vivo.actualizado)+').'); return; }
     const falta=ult+ESPERA-Date.now();
-    if(falta>0){ est('📝 Hay cambios. Publico sola a las '+hora(ult+ESPERA)+' si ya no editas.'); return; }
+    // 18-nov: si el robot de fotos mete cambios sin parar, nunca hay 5 min de calma; si la tienda ya lleva 45 min atrasada, publica de todos modos
+    const atrasada=Date.now()-vivo.actualizado>45*60*1000;
+    if(falta>0&&!atrasada){ est('📝 Hay cambios. Publico sola a las '+hora(ult+ESPERA)+' si ya no editas.'); return; }
     if(o.ultima&&Date.now()-o.ultima<15*60*1000){ est('⏳ Ya publiqué sola a las '+hora(o.ultima)+'; espero 15 min para la siguiente.'); return; }
     if(ps.length<vivo.n-MAX_MENOS){ est('🛑 No publiqué sola: aquí hay '+ps.length+' productos y en tu tienda '+vivo.n+'. Revisa y, si está bien, pícale “Publicar tienda”.'); return; }
     const rep=window.FWRevisor?window.FWRevisor.revisar():[];
