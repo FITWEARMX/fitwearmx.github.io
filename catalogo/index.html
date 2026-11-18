@@ -1198,13 +1198,13 @@ async function gh(path,opt,intento){
   return r.status===204?null:r.json();
 }
 function b64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
-async function jpegTienda(blob,max){
+async function jpegTienda(blob,max,q){
   const u=URL.createObjectURL(blob);
   try{
     const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,(max||1600)/Math.max(w,h)); // 18-nov: 1600 px (antes 1200) para que se vean nítidas
     const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
     const ctx=c.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(im,0,0,c.width,c.height);
-    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.86)); return new Uint8Array(await b.arrayBuffer());
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',q||.86)); return new Uint8Array(await b.arrayBuffer());
   } finally { URL.revokeObjectURL(u); }
 }
 /* Arma lo que ve el público. Solo campos públicos: nada de costos, márgenes, notas ni clientes. */
@@ -1397,7 +1397,10 @@ async function armarTienda(){
     if(p.portada){ const i=fs.findIndex(f=>f.id===p.portada); if(i>0) fs.unshift(fs.splice(i,1)[0]); }
     for(const f of fs){
       const c=colores.find(x=>x.k===f.colorK)||colores[0]; if(!c) continue;
-      const path='fotos/'+f.id+'.jpg'; c.fotos.push(path); usadas.push({path,blob:f.blob});
+      // 18-nov: a la tienda van hasta 3 fotos por color (el Catálogo guarda todas). La 1ª nítida (1600 px);
+      // las demás a 1200 px y calidad 0.8 para que la tienda no pase de 1 GB en GitHub Pages ni tarde en publicar.
+      if(c.fotos.length>=3) continue;
+      const path='fotos/'+f.id+'.jpg'; const extra=c.fotos.length>0; c.fotos.push(path); usadas.push(extra?{path,blob:f.blob,max:1200,q:.8}:{path,blob:f.blob});
     }
     // el precio del producto es el de su color principal; los colores más baratos salen en "Ofertas" de la tienda
     const base=principal&&principal.precioBase||precioDe(p), venta=principal&&principal.precio||precioVenta(p);
@@ -1487,7 +1490,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       let sha=(ya&&ya.sha)||subidasAntes[f.path];
       if(!sha){ let bytes=null;
         // foto dañada o vacía (17-nov: una vacía tumbaba TODO con "sin conexión"): se brinca y se avisa al final
-        try{ bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); }catch(err){}
+        try{ bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max,f.q); }catch(err){}
         if(!bytes||!bytes.length){ malas.push(f.path); continue; }
         sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha;
         subidasAntes[f.path]=sha; guardarSubidas(); await dormir(1000); } // ~45 fotos por minuto (18-nov: antes 30); si GitHub pide pausa, gh() espera solo
