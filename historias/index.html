@@ -123,8 +123,8 @@ label>input,label>select{margin-top:6px}
         </div>
         <p class="calc" id="calc"></p>
         <label>Precio antes, en pesos <span class="opt">(opcional, para ofertas: sale tachado)</span><input id="tAntes" inputmode="decimal" placeholder="Sin oferta" autocomplete="off"></label>
-        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tBF" style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span>Black Friday −25% <span class="opt">(con dólares escritos a mano: el precio normal sale tachado y abajo el nuevo)</span></span></label>
-        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tOrdena" checked style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span id="tOrdenaTxt">Poner “Ordena con $… MXN · tienes 3 semanas para liquidar”</span></label>
+        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tBF" style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span>Black Friday <span class="opt">(se marca sola si la prenda trae precio de Black Friday; con dólares escritos a mano calcula −25%: el normal sale tachado y abajo el nuevo)</span></span></label>
+        <label style="display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:600"><input type="checkbox" id="tOrdena" checked style="width:22px;height:22px;min-height:0;margin:0;flex:none"><span id="tOrdenaTxt">Poner “Ordena con $… MXN · tienes 3 semanas para liquidar” <span class="opt">(es el 25% del precio)</span></span></label>
         <label>Descripción <span class="opt">(opcional)</span><input id="tDesc" placeholder="entrega inmediata · todas las tallas" autocomplete="off"></label>
         <div class="chips frases" id="frases"></div>
         <label>Etiqueta <span class="opt">(opcional)</span><input id="tEtiqueta" placeholder="PREVIEW RESTOCK 13 de octubre" autocomplete="off"></label>
@@ -138,6 +138,20 @@ label>input,label>select{margin-top:6px}
         <h2>3. Estilo</h2>
         <p class="note" style="margin:-4px 0 10px">📌 Tu estilo se guarda solo: lo que elijas aquí se usa en todas las historias nuevas, también las que manda la extensión.</p>
         <p class="note" style="margin:0 0 6px">Franja</p><div class="chips" id="estilos"></div>
+        <div id="rvBox" hidden style="margin-top:12px;padding:12px;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(124,108,255,.45)">
+          <p class="note" style="margin:0 0 8px">👀 <b>Como Revisar</b>: fotos llenas y el texto sobre una sombra. El título es lo que escribas en <b>Nombre</b> (tal cual, con minúsculas). Lo que cambies aquí es solo para esta historia, hasta que le des <b>📌 Fijar</b>.</p>
+          <div class="grid2" style="grid-template-columns:repeat(3,1fr)">
+            <label>Letra<input type="color" id="rvLetra" style="min-height:44px;padding:4px"></label>
+            <label>Precio<input type="color" id="rvPrecio" style="min-height:44px;padding:4px"></label>
+            <label>Sombra<input type="color" id="rvSombra" style="min-height:44px;padding:4px"></label>
+            <label>Etiqueta<input type="color" id="rvEtqFondo" style="min-height:44px;padding:4px"></label>
+            <label>Letra etiqueta<input type="color" id="rvEtqLetra" style="min-height:44px;padding:4px"></label>
+          </div>
+          <p class="note" style="margin:12px 0 6px">Texto (nombre y precio)</p><div class="chips" id="rvTexto"></div>
+          <p class="note" style="margin:12px 0 6px">Etiqueta (BLACK FRIDAY…)</p><div class="chips" id="rvEtq"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn" id="rvFijar">📌 Fijar como mi normal</button><button type="button" class="btn ghost" id="rvVolver">Volver a mi normal</button></div>
+          <p class="note" id="rvNota" style="margin:8px 0 0"></p>
+        </div>
         <p class="note" style="margin:14px 0 6px">Acomodo</p><div class="chips" id="flotas"></div>
         <p class="note" style="margin:14px 0 6px">Fotos (para todas)</p><div class="chips" id="modosTodos"></div>
         <label style="margin-top:14px">Tamaño de la franja: <b id="tamTxt">100%</b><input type="range" id="tamFranja" min="70" max="150" step="5" value="100" style="width:100%;min-height:0;padding:0"></label>
@@ -384,9 +398,57 @@ function marcaAgua(d,o){
 }
 /* o = {diseno:'4'|'3'|'2'|'1', fotos:[Image], ajustes:[{zoom,x,y}], completa:bool,
         linea1, titulo, precio, linea3, etiqueta, estilo:'negro'|'blanco'} */
+/* Estilo "Como Revisar" (igual a la vista previa de Revisar de la extensión, 17-nov-2026):
+   fotos llenas (1 todo · 2 arriba/abajo · 3 grande arriba y dos abajo · 4 cuadrícula), sombra oscura con nombre, color y precio,
+   etiqueta negra con borde blanco. o.rv = {letra, precio, sombra, etqFondo, etqLetra, texto:'abajo'|'centro'|'arriba', etqPos:'arriba-izq'|'arriba-der'|'texto'} */
+const RV_BASE={letra:'#ffffff',precio:'#ffffff',sombra:'#000000',etqFondo:'#000000',etqLetra:'#ffffff',texto:'abajo',etqPos:'arriba-izq'};
+function rgba(hex,a){ const h=String(hex||'#000').replace('#',''), v=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16)||0; return 'rgba('+(v>>16&255)+','+(v>>8&255)+','+(v&255)+','+a+')'; }
+function dibujarRevisar(d,o){
+  const r=Object.assign({},RV_BASE,o.rv||{}), fotos=(o.fotos||[]).filter(Boolean), aj=o.ajustes||[], g=2, mh=H/2, cw=(W-g)/2, fu=F(o);
+  const n=o.diseno==='4'?4:o.diseno==='3'?3:o.diseno==='2'?2:1;
+  d.fillStyle='#000'; d.fillRect(0,0,W,H);
+  const poner=(i,x,y,w,h,arriba)=>{ const im=fotos[i]; if(!im){ d.fillStyle='#1a1a1a'; d.fillRect(x,y,w,h); return; }
+    const a=Object.assign({},aj[i]||{}); if(arriba&&a.y==null) a.y=.35; cover(d,im,x,y,w,h,a); };
+  if(n===1) poner(0,0,0,W,H);
+  else if(n===2){ poner(0,0,0,W,mh-g/2,1); poner(1,0,mh+g/2,W,mh-g/2); }
+  else if(n===3){ poner(0,0,0,W,mh-g/2,1); poner(1,0,mh+g/2,cw,mh-g/2); poner(2,cw+g,mh+g/2,cw,mh-g/2); }
+  else { poner(0,0,0,cw,mh-g/2); poner(1,cw+g,0,cw,mh-g/2); poner(2,0,mh+g/2,cw,mh-g/2); poner(3,cw+g,mh+g/2,cw,mh-g/2); }
+  // renglones del texto
+  const M=56, max=W-M*2, filas=[];
+  const fit=(t,peso,tam)=>{ d.font=peso+' '+tam+'px '+fu; return wrap(d,t,max); };
+  if(o.linea1) fit(o.linea1.toUpperCase(),'700',34).forEach(t=>filas.push({t,f:'700 34px '+fu,h:46,c:rgba(r.letra,.8)}));
+  if(o.titulo) fit(o.titulo,'800',70).forEach(t=>filas.push({t,f:'800 70px '+fu,h:84,c:r.letra}));
+  if(o.linea3) fit(o.linea3,'500',44).forEach(t=>filas.push({t,f:'500 44px '+fu,h:58,c:rgba(r.letra,.85)}));
+  if(o.precio) filas.push({tipo:'precio',h:128});
+  if(o.ordena) fit(o.ordena,'700',36).forEach(t=>filas.push({t,f:'700 36px '+fu,h:50,c:r.letra}));
+  const etqTxt=(o.etiqueta||'').toUpperCase(), conEtq=!!etqTxt&&r.etqPos==='texto', alto=filas.reduce((s,f)=>s+f.h,0)+(conEtq?90:0);
+  const topEtq=etqTxt&&r.etqPos!=='texto'?100:0;
+  const y0=r.texto==='arriba'?M+topEtq:r.texto==='centro'?Math.round((H-alto)/2):H-M-alto-(st0(o)?110:0);
+  // sombra detrás del texto (se desvanece hacia las fotos)
+  const pad=220, ya=Math.max(0,y0-pad), yb=Math.min(H,y0+alto+pad);
+  let gr;
+  if(r.texto==='abajo'){ gr=d.createLinearGradient(0,ya,0,H); gr.addColorStop(0,rgba(r.sombra,0)); gr.addColorStop(.45,rgba(r.sombra,.6)); gr.addColorStop(1,rgba(r.sombra,.9)); d.fillStyle=gr; d.fillRect(0,ya,W,H-ya); }
+  else if(r.texto==='arriba'){ gr=d.createLinearGradient(0,0,0,yb); gr.addColorStop(0,rgba(r.sombra,.9)); gr.addColorStop(.55,rgba(r.sombra,.6)); gr.addColorStop(1,rgba(r.sombra,0)); d.fillStyle=gr; d.fillRect(0,0,W,yb); }
+  else { gr=d.createLinearGradient(0,ya,0,yb); gr.addColorStop(0,rgba(r.sombra,0)); gr.addColorStop(.3,rgba(r.sombra,.75)); gr.addColorStop(.7,rgba(r.sombra,.75)); gr.addColorStop(1,rgba(r.sombra,0)); d.fillStyle=gr; d.fillRect(0,ya,W,yb-ya); }
+  const chapa=(x,y,derecha)=>{ d.font='800 40px '+fu; const tw=Math.min(d.measureText(etqTxt).width,W-M*2-40), w=tw+44, h=66, xx=derecha?x-w:x;
+    d.fillStyle=r.etqFondo; rr(d,xx,y,w,h,14); d.fill(); d.lineWidth=4; d.strokeStyle=r.etqLetra; rr(d,xx,y,w,h,14); d.stroke();
+    d.fillStyle=r.etqLetra; d.textBaseline='middle'; d.textAlign='left'; d.fillText(etqTxt,xx+22,y+h/2+2,W-M*2-40); d.textBaseline='alphabetic'; };
+  if(etqTxt&&r.etqPos==='arriba-izq') chapa(M,M,false);
+  if(etqTxt&&r.etqPos==='arriba-der') chapa(W-M,M,true);
+  let y=y0; if(conEtq){ chapa(M,y,false); y+=90; }
+  d.textAlign='left'; d.shadowColor='rgba(0,0,0,.35)'; d.shadowBlur=8;
+  filas.forEach(f=>{
+    if(f.tipo==='precio'){ d.font='800 112px '+fu; d.fillStyle=r.precio; d.fillText(o.precio,M,y+104); const pw=d.measureText(o.precio).width;
+      if(o.precioAntes){ d.font='600 54px '+fu; d.fillStyle=rgba(r.letra,.7); const x=M+pw+26; d.fillText(o.precioAntes,x,y+100); const aw=d.measureText(o.precioAntes).width; d.fillRect(x,y+82,aw,5); }
+    } else { d.font=f.f; d.fillStyle=f.c; d.fillText(f.t,M,y+f.h-14); }
+    y+=f.h; });
+  d.shadowBlur=0; d.shadowColor='transparent';
+}
+const st0=o=>o.marca&&String(o.marcaPos||'').startsWith('abajo'); // si el logo va abajo, el texto sube para no taparlo
 function dibujar(canvas,o){
   canvas.width=W; canvas.height=H;
   const d=canvas.getContext('2d'); d.imageSmoothingQuality='high';
+  if(o.estilo==='revisar'){ dibujarRevisar(d,o); marcaAgua(d,o); return canvas; }
   d.fillStyle='#ffffff'; d.fillRect(0,0,W,H);
   const fr=esFac(o)?franjaFactura(d,o):armarFranja(d,o), fotos=(o.fotos||[]).filter(Boolean), aj=o.ajustes||[];
   const n=o.diseno==='4'?4:o.diseno==='3'?3:o.diseno==='2'?2:1;
@@ -446,6 +508,10 @@ function pesos(usd){ const v=num(usd)*num(AJ.tc)*(1+num(AJ.margen)/100), r=num(A
 
 /* estado de la historia actual */
 const st=Object.assign({diseno:'4',estilo:'factura',etq:'franja',marcaPos:'arriba-der',marca:true,paleta:'facturas',flota:true,fuente:'sans',tamano:100,modoFoto:''},LS.get('estilo',{}));
+/* estilo "Como Revisar": rv = lo de esta historia; 'rvFijo' = tu normal (📌 Fijar). Al empezar otra historia vuelve a tu normal. */
+const RV_DEF={letra:'#ffffff',precio:'#ffffff',sombra:'#000000',etqFondo:'#000000',etqLetra:'#ffffff',texto:'abajo',etqPos:'arriba-izq'};
+const rvFijo=()=>Object.assign({},RV_DEF,LS.get('rvFijo',{}));
+let rv=rvFijo();
 let fotos=[null,null,null,null], ajustes=[{},{},{},{}], sel=-1, cola=[], mxnManual=false, pendientes=0; // pendientes: las del inicio de la lista que mandaste y esperan tu confirmación
 const marca={negro:new Image(),crema:new Image()}; marca.negro.src=LOGO_NEGRO; marca.crema.src=LOGO_CREMA;
 
@@ -472,12 +538,13 @@ function chipsPaleta(){
   $('#paletas').innerHTML=Object.entries(PALETAS).map(([k,v])=>'<button type="button" class="chip'+(st.paleta===k?' on':'')+'" data-pal="'+k+'"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;'+swatch(v)+';margin-right:6px;vertical-align:-2px;box-shadow:0 0 0 1px rgba(0,0,0,.25)"></span>'+v.n+'</button>').join('')+
     '<button type="button" class="chip'+(st.paleta==='personal'?' on':'')+'" data-pal="personal">🎨 Personalizado</button>';
   $('#colCustom').hidden=st.paleta!=='personal'; const c=colores(); $('#cTit').value=c.titulo; $('#cPre').value=c.precio; $('#cDes').value=c.desc; $('#cFon').value=c.fondo; $('#cEtq').value=c.etiqueta;
-  $('#colBox').hidden=!(st.estilo==='factura'||st.estilo==='cristal'); $('#fuenteBox').hidden=$('#colBox').hidden;
+  $('#colBox').hidden=!(st.estilo==='factura'||st.estilo==='cristal'); $('#fuenteBox').hidden=$('#colBox').hidden&&st.estilo!=='revisar';
 }
 function chips(el,ops,val,key){ el.innerHTML=ops.map(o=>'<button type="button" class="chip'+(val===o[0]?' on':'')+'" data-'+key+'="'+esc(o[0])+'">'+esc(o[1])+'</button>').join(''); }
 function pintarOpciones(){
   chips($('#disenos'),[['4','4 fotos'],['3','3 fotos'],['2','2 fotos'],['1','1 foto']],st.diseno,'dis');
-  chips($('#estilos'),[['factura','Como mis facturas'],['cristal','Cristal (tipo iPhone)'],['blanco','Blanca'],['negro','Negra']],st.estilo,'est');
+  chips($('#estilos'),[['revisar','👀 Como Revisar (fotos llenas)'],['factura','Como mis facturas'],['cristal','Cristal (tipo iPhone)'],['blanco','Blanca'],['negro','Negra']],st.estilo,'est');
+  pintarRv();
   $('#tamFranja').value=st.tamano||100; $('#tamTxt').textContent=(st.tamano||100)+'%';
   chips($('#modosTodos'),[['llenar','Llenar el cuadro'],['completa','Foto completa']],st.modoFoto==='completa'?'completa':'llenar','mt');
   chips($('#flotas'),[['si','Fotos completas, franja flotante'],['no','Franja entre las fotos']],st.flota===false?'no':'si','flo');
@@ -487,6 +554,14 @@ function pintarOpciones(){
   chipsPaleta();
   $('#frases').innerHTML=FRASES.map(f=>'<button type="button" class="chip" data-frase="'+esc(f)+'">+ '+esc(f)+'</button>').join('');
   $('#etiquetas').innerHTML=ETIQ.map(f=>'<button type="button" class="chip" data-etq="'+esc(f)+'">'+esc(f)+'</button>').join('')+'<button type="button" class="chip" data-etq="">Sin etiqueta</button>';
+}
+function pintarRv(){
+  const b=$('#rvBox'); if(!b) return; b.hidden=st.estilo!=='revisar'; if(b.hidden) return;
+  [['rvLetra','letra'],['rvPrecio','precio'],['rvSombra','sombra'],['rvEtqFondo','etqFondo'],['rvEtqLetra','etqLetra']].forEach(([id,k])=>{ $('#'+id).value=rv[k]; });
+  chips($('#rvTexto'),[['abajo','Abajo'],['centro','En medio'],['arriba','Arriba']],rv.texto,'rvt');
+  chips($('#rvEtq'),[['arriba-izq','Arriba izquierda'],['arriba-der','Arriba derecha'],['texto','Junto al nombre']],rv.etqPos,'rve');
+  const igual=JSON.stringify(rv)===JSON.stringify(rvFijo());
+  $('#rvNota').textContent=igual?'Esta historia usa tu normal.':'Cambiaste algo solo para esta historia. 📌 Fijar = usarlo en todas las nuevas.';
 }
 function n(){ return +st.diseno; }
 function pintarSlots(){
@@ -499,7 +574,7 @@ function pintarSlots(){
 }
 function opciones(){
   return {diseno:st.diseno,fotos:fotos.slice(0,n()),ajustes:ajustes.slice(0,n()),estilo:st.estilo,
-    linea1:$('#tLinea1').value.trim(),titulo:$('#tTitulo').value.trim().toUpperCase(),precio:precioTxt(),precioAntes:antesTxt(),
+    linea1:$('#tLinea1').value.trim(),titulo:st.estilo==='revisar'?$('#tTitulo').value.trim():$('#tTitulo').value.trim().toUpperCase(),rv:Object.assign({},rv),precio:precioTxt(),precioAntes:antesTxt(),
     ordena:ordenaTxt(),linea3:$('#tDesc').value.trim(),etiqueta:$('#tEtiqueta').value.trim(),
     marca:st.marca?marca:null,marcaPos:st.marcaPos,etqEstilo:(st.estilo==='factura'||st.estilo==='cristal')?st.etq:'rojo',colores:colores(),flota:st.flota!==false,fuente:st.fuente||'sans',tamano:st.tamano||100,modoFoto:st.modoFoto||'llenar'};
 }
@@ -508,7 +583,7 @@ function opciones(){
 let ordenaFijo='';
 function ordenaTxt(){ if(ordenaFijo){ $('#tOrdenaTxt').textContent='Poner “'+ordenaFijo+'”'; return $('#tOrdena').checked?ordenaFijo:''; }
   const v=num($('#tMxn').value), a=Math.ceil(v*.25/10)*10;
-  if(a) $('#tOrdenaTxt').textContent='Poner “Ordena con $'+a+' MXN · tienes 3 semanas para liquidar”';
+  if(a) $('#tOrdenaTxt').innerHTML='Poner “Ordena con $'+a+' MXN · tienes 3 semanas para liquidar” <span class="opt">(es el 25% de $'+v+')</span>';
   return $('#tOrdena').checked&&a?'Ordena con $'+a+' MXN · tienes 3 semanas para liquidar':''; }
 function antesTxt(){ if(ordenaFijo) return ''; const a=num($('#tAntes').value), v=num($('#tMxn').value); return a>v&&v?'$'+Math.round(a):''; }
 function precioTxt(){ if(ordenaFijo) return ''; const v=num($('#tMxn').value); return v?'$'+Math.round(v):''; }
@@ -551,6 +626,8 @@ document.addEventListener('click',e=>{
   const es=e.target.closest('[data-est]'); if(es){ st.estilo=es.dataset.est;
     if(st.estilo==='cristal'&&!/^cristal|^personal/.test(st.paleta)) st.paleta='cristal'; // el cristal se ve mejor con su paleta
     LS.set('estilo',st); pintarOpciones(); previa(); return; }
+  const rt=e.target.closest('[data-rvt]'); if(rt){ rv.texto=rt.dataset.rvt; pintarRv(); previa(); return; }
+  const re=e.target.closest('[data-rve]'); if(re){ rv.etqPos=re.dataset.rve; pintarRv(); previa(); return; }
   const mt=e.target.closest('[data-mt]'); if(mt){ st.modoFoto=mt.dataset.mt; ajustes.forEach(a=>{ delete a.modo; }); LS.set('estilo',st); pintarOpciones(); pintarSlots(); previa(); return; }
   const fl=e.target.closest('[data-flo]'); if(fl){ st.flota=fl.dataset.flo==='si'; LS.set('estilo',st); pintarOpciones(); previa(); return; }
   const fu=e.target.closest('[data-fue]'); if(fu){ st.fuente=fu.dataset.fue; LS.set('estilo',st); pintarOpciones(); previa(); return; }
@@ -563,6 +640,9 @@ document.addEventListener('click',e=>{
 ['tLinea1','tTitulo','tDesc','tEtiqueta'].forEach(id=>$('#'+id).addEventListener('input',previa));
 $('#tOrdena').addEventListener('change',previa);
 [['cTit','titulo'],['cPre','precio'],['cDes','desc'],['cFon','fondo'],['cEtq','etiqueta']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ st.colores=Object.assign({},st.colores||{},{[k]:$('#'+id).value}); LS.set('estilo',st); previa(); }));
+[['rvLetra','letra'],['rvPrecio','precio'],['rvSombra','sombra'],['rvEtqFondo','etqFondo'],['rvEtqLetra','etqLetra']].forEach(([id,k])=>$('#'+id).addEventListener('input',()=>{ rv[k]=$('#'+id).value; pintarRv(); previa(); }));
+$('#rvFijar').addEventListener('click',()=>{ LS.set('rvFijo',rv); pintarRv(); toast('📌 Fijado: las historias nuevas salen así'); });
+$('#rvVolver').addEventListener('click',()=>{ rv=rvFijo(); pintarRv(); previa(); });
 $('#tUsd').addEventListener('input',()=>{ usdTecleado=true; calcular(); previa(); });
 $('#tBF').addEventListener('change',()=>{ calcular(); if(!$('#tBF').checked) ponerOferta(0,''); previa(); });
 $('#tLinea1').addEventListener('input',()=>{ calcular(); previa(); });
@@ -578,7 +658,7 @@ function pintarCola(){
   const b=$('#btnGuardar'); b.hidden=!cola.length; b.textContent='Guardar ('+cola.length+')';
 }
 /* Le pone el estilo de ahorita (franja, colores, letra, tamaño, acomodo, fotos y logo) a todas las historias de la lista */
-const CLAVES_ESTILO=['estilo','flota','fuente','tamano','colores','etqEstilo','marca','marcaPos','modoFoto'];
+const CLAVES_ESTILO=['rv','estilo','flota','fuente','tamano','colores','etqEstilo','marca','marcaPos','modoFoto'];
 $('#btnRestyle').addEventListener('click',async()=>{
   if(!cola.length) return;
   const b=$('#btnRestyle'), ahora=opciones(), nuevo={}; CLAVES_ESTILO.forEach(k=>{ nuevo[k]=ahora[k]; });
@@ -601,10 +681,11 @@ $('#btnAgregar').addEventListener('click',async()=>{
   const c=document.createElement('canvas'); Historia.dibujar(c,opciones());
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.93));
   cola.push({blob,url:URL.createObjectURL(blob),nombre:nombreArchivo(cola.length+1),o:(o=>Object.assign(o,{ajustes:o.ajustes.map(x=>Object.assign({},x))}))(opciones())});
+  rv=rvFijo(); pintarRv();
   pintarCola(); toast('Agregada · '+cola.length+(cola.length===1?' historia lista':' historias listas'));
   window.scrollTo({top:0,behavior:'smooth'});
 });
-$('#btnNueva').addEventListener('click',()=>{ ordenaFijo='';
+$('#btnNueva').addEventListener('click',()=>{ ordenaFijo=''; rv=rvFijo(); pintarRv();
   fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; mxnManual=false;
   ['tTitulo','tUsd','tMxn','tLink','tAntes'].forEach(id=>$('#'+id).value=''); $('#tBF').checked=false; usdTecleado=false; origen=null; notaCat();
   pintarSlots(); calcular(); previa(); toast('Lista para el siguiente producto');
@@ -745,6 +826,7 @@ async function cargarDeCatalogo(id,colorK){
     const ts=col?Object.entries(col.tallas||{}).filter(([t,x])=>e.b!=='disponible'||+x>0).map(([t])=>t):[];
     const v=col?pc(col):0;
     ponerOferta(col&&v<mx?mx:0,col&&v<mx?'OFERTA -'+Math.round((1-v/mx)*100)+'%'+(ts.length&&ts.length<=2?' · SOLO '+ts.join(', '):''):'');
+    marcarBF(!!(col&&col.precioAntes));
   }
   origen={catalogoId:p.id}; notaCat();
   pintarOpciones(); pintarSlots(); calcular(); previa(); toast('Listo: '+(p.nombre||'producto')+' desde tu Catálogo');
@@ -792,6 +874,7 @@ function cargarDeTienda(p,c){
   { // si el color está más barato que el más caro de la prenda, es oferta (igual que con el Catálogo)
     const pc=x=>(x&&x.precio)||p.precio, mx=Math.max(p.precio||0,...(p.colores||[]).map(pc),(c&&c.precioAntes)||0), v=c?pc(c):0;
     ponerOferta(c&&v<mx?mx:0,c&&v<mx?'OFERTA -'+Math.round((1-v/mx)*100)+'%'+(disp&&ts.length&&ts.length<=2?' · SOLO '+ts.join(', '):''):'');
+    marcarBF(!!(c&&c.precioAntes));
   }
   origen={catalogoId:p.id,tienda:true}; notaCat();
   pintarOpciones(); pintarSlots(); calcular(); previa();
@@ -844,6 +927,7 @@ async function recibirProducto(d){
   origen=null; notaCat();
   calcular();
   ponerOferta(d.precioAntesMxn?Math.round(num(d.precioAntesMxn)):(d.precioAntesUsd?pesos(d.precioAntesUsd):0),d.etiqueta||'');
+  marcarBF(!!d.bf||/BLACK\s*FRIDAY/i.test(d.etiqueta||''));
   if(d.etiqueta&&!d.precioAntesUsd&&!d.precioAntesMxn) $('#tEtiqueta').value=String(d.etiqueta).toUpperCase(); // etiqueta normal (por ejemplo EARLY ACCESS · 27 OCT)
   // el acomodo se adapta a las fotos que lleguen: 1, 2, 3 o 4 (nunca cuadros vacíos)
   if((d.fotos||[]).length){ st.diseno=String(Math.min(4,d.fotos.length)); LS.set('estilo',st); fotos=[null,null,null,null]; ajustes=[{},{},{},{}]; sel=-1; pintarOpciones(); }
@@ -859,6 +943,8 @@ window.soportaOrdenaFijo=true; // la extensión revisa esto: si no está, la pes
 /* Oferta: pone el precio de antes (tachado) y la etiqueta "OFERTA -50% · SOLO XS".
    Si el producto no es oferta y la etiqueta la había puesto una oferta, regresa la que tenías. */
 let etqAntes=null, etqOferta='';
+// la casilla Black Friday se marca sola solo si la prenda trae precio de Black Friday y sí quedó tachado (no recalcula nada)
+function marcarBF(esBF){ $('#tBF').checked=!!(esBF&&num($('#tAntes').value)); }
 function ponerOferta(antes,etq){
   const v=num($('#tMxn').value), t=$('#tEtiqueta');
   if(antes>v&&v){
