@@ -1201,10 +1201,10 @@ function b64(bytes){ let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.f
 async function jpegTienda(blob,max){
   const u=URL.createObjectURL(blob);
   try{
-    const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,(max||1200)/Math.max(w,h));
+    const im=await loadImg(u), w=im.naturalWidth, h=im.naturalHeight, s=Math.min(1,(max||1600)/Math.max(w,h)); // 18-nov: 1600 px (antes 1200) para que se vean nítidas
     const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
-    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.82)); return new Uint8Array(await b.arrayBuffer());
+    const ctx=c.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(im,0,0,c.width,c.height);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.86)); return new Uint8Array(await b.arrayBuffer());
   } finally { URL.revokeObjectURL(u); }
 }
 /* Arma lo que ve el público. Solo campos públicos: nada de costos, márgenes, notas ni clientes. */
@@ -1490,7 +1490,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
         try{ bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); }catch(err){}
         if(!bytes||!bytes.length){ malas.push(f.path); continue; }
         sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha;
-        subidasAntes[f.path]=sha; guardarSubidas(); await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
+        subidasAntes[f.path]=sha; guardarSubidas(); await dormir(1000); } // ~45 fotos por minuto (18-nov: antes 30); si GitHub pide pausa, gh() espera solo
       subidas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
     estado('Guardando tus datos…');
