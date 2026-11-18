@@ -1479,13 +1479,17 @@ $('#btnPublicar').addEventListener('click',async()=>{
     const {datos,fotos}=await armarTienda();
     const SUB_KEY=CFG.db+'_fotosSubidas'; let subidasAntes={}; try{ subidasAntes=JSON.parse(localStorage.getItem(SUB_KEY)||'{}'); }catch(e){}
     const guardarSubidas=()=>{ try{ localStorage.setItem(SUB_KEY,JSON.stringify(subidasAntes)); }catch(e){} };
-    const subidas=[]; let n=0;
+    const subidas=[]; let n=0; const malas=[];
     for(const f of fotos){
       n++; estado('Subiendo fotos… '+n+' de '+fotos.length);
       const ya=remoto.get(f.path);
       // si una publicación anterior se cortó, las fotos que ya subió se reusan (no se vuelven a subir)
       let sha=(ya&&ya.sha)||subidasAntes[f.path];
-      if(!sha){ const bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha;
+      if(!sha){ let bytes=null;
+        // foto dañada o vacía (17-nov: una vacía tumbaba TODO con "sin conexión"): se brinca y se avisa al final
+        try{ bytes=f.raw?new Uint8Array(await f.blob.arrayBuffer()):await jpegTienda(f.blob,f.max); }catch(err){}
+        if(!bytes||!bytes.length){ malas.push(f.path); continue; }
+        sha=(await gh('/git/blobs',{method:'POST',body:{content:b64(bytes),encoding:'base64'}})).sha;
         subidasAntes[f.path]=sha; guardarSubidas(); await dormir(2000); } // ~30 fotos por minuto, para no topar el límite de GitHub
       subidas.push({path:f.path,mode:'100644',type:'blob',sha});
     }
@@ -1519,7 +1523,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       try{ await gh('/git/refs/heads/main',{method:'PATCH',body:{sha:c.sha}}); break; }
       catch(err){ if(err&&err.status===422&&vuelta<3){ await dormir(3000); continue; } throw err; }
     }
-    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privados?' + '+datos.privados.map(g=>g.n+' de '+(g.marca||'Early Access')).join(' y ')+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.');
+    estado('✅ Publicado: '+(datos.productos.length===1?'1 producto':datos.productos.length+' productos')+(datos.privados?' + '+datos.privados.map(g=>g.n+' de '+(g.marca||'Early Access')).join(' y ')+' en Early Access con contraseña':'')+'. Tu tienda se actualiza en 1 o 2 minutos.'+(malas.length?' ⚠️ '+malas.length+(malas.length===1?' foto dañada no se subió: ':' fotos dañadas no se subieron: ')+malas.slice(0,5).join(', ')+'. Vuelve a ponerle foto a esos colores.':''));
     try{ localStorage.removeItem(CFG.db+'_fotosSubidas'); }catch(e){}
     toast('Tienda publicada');
   }catch(e){
@@ -1528,7 +1532,8 @@ $('#btnPublicar').addEventListener('click',async()=>{
       (s===403||s===404)?'No se encontró el repositorio o la llave no tiene permiso para “'+GH.repo+'”.':
       s===409?'El repositorio está vacío. Primero sube los archivos de la tienda.':
       s===422?'GitHub rechazó los cambios'+(e.msg?' (“'+e.msg+'”)':'')+'. Intenta de nuevo; si vuelve a salir, mándale foto de este mensaje a quien te ayuda.':
-      'No se pudo publicar ('+((e&&(e.msg||e.message))||'sin conexión')+(s?' · '+s:'')+'). Revisa tu internet e intenta de nuevo.');
+      (e instanceof TypeError||!navigator.onLine)?'No se pudo publicar: se cortó la conexión con GitHub'+(e&&e.message?' ('+e.message+')':'')+'. Revisa tu internet e intenta de nuevo.':
+      'No se pudo publicar (falla del Catálogo, no de tu internet: '+((e&&(e.msg||e.message||e.type))||String(e))+(s?' · '+s:'')+'). Mándale foto de este mensaje a Claude.');
   }
   btn.disabled=false; btn.textContent='Publicar tienda';
 });
