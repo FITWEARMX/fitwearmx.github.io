@@ -1182,12 +1182,16 @@ async function gh(path,opt,intento){
   opt=opt||{}; intento=intento||0;
   const esperar=async(seg,txt)=>{ const antes=$('#pubStatus').textContent; for(let s=seg;s>0;s--){ estado(txt+' '+s+' s…'); await dormir(1000); } estado(antes); };
   let r;
-  try{ r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',
+  // 18-nov: si GitHub no contesta en 90 s se corta y se reintenta (antes se quedaba esperando horas y trababa la publicación y al robot de fotos)
+  const ctl=new AbortController(), tope=setTimeout(()=>ctl.abort(),90000);
+  try{ r=await fetch('https://api.github.com/repos/'+encodeURIComponent(GH.user)+'/'+encodeURIComponent(GH.repo)+path,{method:opt.method||'GET',cache:'no-store',signal:ctl.signal,
     headers:Object.assign({'Authorization':'Bearer '+GH.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},opt.body?{'Content-Type':'application/json'}:{}),
-    body:opt.body?JSON.stringify(opt.body):undefined}); }
-  catch(e){ // se cortó la conexión (o GitHub frenó sin avisar): espera y reintenta hasta 5 veces
+    body:opt.body?JSON.stringify(opt.body):undefined});
+    if(r.ok&&r.status!==204){ const j=await r.json(); clearTimeout(tope); return j; } }
+  catch(e){ clearTimeout(tope); // se cortó la conexión, GitHub frenó sin avisar o no contestó en 90 s: espera y reintenta hasta 5 veces
     if(intento<5){ await esperar(45,'Se cortó la conexión con GitHub; reintento en'); return gh(path,opt,intento+1); }
     throw e; }
+  clearTimeout(tope);
   if(!r.ok){ let m=''; try{ m=(await r.json()).message||''; }catch(e){}
     // GitHub limita cuántos archivos se suben por minuto: espera lo que pida y sigue (hasta 4 veces)
     if((r.status===429||(r.status===403&&/rate limit|abuse/i.test(m)))&&intento<4){
@@ -1535,6 +1539,7 @@ $('#btnPublicar').addEventListener('click',async()=>{
       (s===403||s===404)?'No se encontró el repositorio o la llave no tiene permiso para “'+GH.repo+'”.':
       s===409?'El repositorio está vacío. Primero sube los archivos de la tienda.':
       s===422?'GitHub rechazó los cambios'+(e.msg?' (“'+e.msg+'”)':'')+'. Intenta de nuevo; si vuelve a salir, mándale foto de este mensaje a quien te ayuda.':
+      (e&&e.name==='AbortError')?'No se pudo publicar: GitHub no contestó (lo intenté 6 veces). Se vuelve a intentar sola al rato.':
       (e instanceof TypeError||!navigator.onLine)?'No se pudo publicar: se cortó la conexión con GitHub'+(e&&e.message?' ('+e.message+')':'')+'. Revisa tu internet e intenta de nuevo.':
       'No se pudo publicar (falla del Catálogo, no de tu internet: '+((e&&(e.msg||e.message||e.type))||String(e))+(s?' · '+s:'')+'). Mándale foto de este mensaje a Claude.');
   }
