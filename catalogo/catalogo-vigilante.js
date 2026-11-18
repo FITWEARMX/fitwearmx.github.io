@@ -38,7 +38,9 @@
   async function revisar(){
     const res={cuando:Date.now(),faltan:[],ocultas:[],errores:[],revisadas:0};
     const mios=new Map();
-    for(const p of H.productos()) for(const l of [p.link,...(p.colores||[]).map(c=>c.link)]){ const h=hOf(l); if(h&&!mios.has(h)) mios.set(h,p); }
+    // si la misma prenda está en dos (ej. "New Colors" juntada en la otra), cuenta la que sí sale en la tienda
+    const sale=p=>p.enTienda!==false&&H.base(p)!=='agotado';
+    for(const p of H.productos()) for(const l of [p.link,...(p.colores||[]).map(c=>c.link)]){ const h=hOf(l); if(h&&(!mios.has(h)||(sale(p)&&!sale(mios.get(h))))) mios.set(h,p); }
     for(const v of VIGILA) for(const col of v.cols){
       try{
         const ps=await leerCol(v.sitio,col);
