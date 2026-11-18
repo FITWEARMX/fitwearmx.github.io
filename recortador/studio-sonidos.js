@@ -3,7 +3,7 @@
 
 // ---------- efectos de sonido (hechos aquí, sin derechos de autor) ----------
 const SONIDOS = { auto: '✨ Automático', no: 'Ninguno', whoosh: 'Whoosh (pasa rápido)', golpe: 'Golpe grave', brillo: 'Brillo / destello',
-  pop: 'Pop', clic: 'Clic', ding: 'Ding de notificación', subida: 'Subida (riser)', exito: 'Éxito (pedido listo)' };
+  buzz: 'Buzz de bajo', bajo: 'Bajo largo (808)', corte: 'Corte rápido', pop: 'Pop', clic: 'Clic', ding: 'Ding de notificación', subida: 'Subida (riser)', exito: 'Éxito (pedido listo)' };
 const SONIDO_AUTO = { texto: 'whoosh', logo: 'brillo', marcas: 'pop', notificacion: 'ding', boton: 'exito', mapa: 'subida', puerta: 'golpe',
   caja: 'golpe', explica: 'whoosh', producto: 'whoosh', celular: 'whoosh', sombra: 'whoosh' };
 const sonidoDe = c => !c.sonido || c.sonido === 'auto' ? SONIDO_AUTO[c.tipo] || 'no' : c.sonido;
@@ -29,7 +29,19 @@ function efecto(ac, salida, tipo, t, v = 0.7) {
     s.buffer = ruidoDe(ac); f.type = tipoF; f.Q.value = q; f.frequency.setValueAtTime(f0, t); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
     env(e, a, Math.max(0.02, dur - a), pico); s.connect(f); f.connect(e); e.connect(g); s.start(t); s.stop(t + dur + 0.05);
   };
-  if (tipo === 'whoosh') ruido(0.45, 'bandpass', 400, 3500, 0.18, 0.9, 1.2);
+  const sucio = (f0, f1, dur, pico, abre, cierra) => {   // onda de bajo saturada: el "buzz"
+    const o = ac.createOscillator(), ws = ac.createWaveShaper(), fl = ac.createBiquadFilter(), e = ac.createGain();
+    const curva = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curva[i] = Math.tanh(x * 3.5); }
+    ws.curve = curva; o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    fl.type = 'lowpass'; fl.frequency.setValueAtTime(abre, t); fl.frequency.exponentialRampToValueAtTime(cierra, t + dur);
+    e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(pico, t + 0.008); e.gain.setValueAtTime(pico, t + dur * 0.45); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(ws); ws.connect(fl); fl.connect(e); e.connect(g); o.start(t); o.stop(t + dur + 0.05);
+  };
+  if (tipo === 'buzz') { sucio(62, 46, 0.34, 0.55, 1400, 160); tono(90, 46, 0.34, 'sine', 0.9); ruido(0.05, 'highpass', 2500, 0, 0.002, 0.3); }
+  else if (tipo === 'bajo') { tono(120, 40, 1.5, 'sine', 1); sucio(50, 38, 0.8, 0.28, 700, 90); ruido(0.08, 'lowpass', 1800, 300, 0.003, 0.6); }
+  else if (tipo === 'corte') { ruido(0.14, 'bandpass', 3000, 500, 0.008, 0.7, 1.4); tono(110, 48, 0.2, 'sine', 0.85); sucio(70, 50, 0.14, 0.3, 1000, 200); }
+  else if (tipo === 'whoosh') ruido(0.45, 'bandpass', 400, 3500, 0.18, 0.9, 1.2);
   else if (tipo === 'golpe') { tono(140, 38, 0.6, 'sine', 1); ruido(0.25, 'lowpass', 900, 200, 0.005, 0.6); }
   else if (tipo === 'brillo') { [1760, 2349, 2960, 3520].forEach((f, i) => tono(f, 0, 0.9, 'sine', 0.22, i * 0.05)); ruido(0.6, 'highpass', 6000, 9000, 0.05, 0.25); }
   else if (tipo === 'pop') tono(700, 220, 0.09, 'sine', 0.8);

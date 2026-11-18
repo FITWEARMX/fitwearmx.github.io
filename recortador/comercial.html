@@ -19,8 +19,8 @@
     <a href="#" data-vista="creaciones"><i>◫</i> Mis creaciones</a>
     <h4>Herramientas</h4>
     <a href="#" data-vista="editor"><i>✂︎</i> Editor</a>
-    <a href="#" data-herr="producto"><i>👕</i> Prenda en negro</a>
-    <a href="#" data-herr="sombra"><i>👤</i> Sombra + prenda</a>
+    <a href="#" data-herr="producto" hidden style="display:none"><i>👕</i> Prenda en negro</a><!-- escondida: sombra negra no le gustó (17-nov) -->
+    <a href="#" data-herr="sombra" hidden style="display:none"><i>👤</i> Sombra + prenda</a>
     <a href="#" data-herr="celular"><i>📱</i> Celular</a>
     <a href="#" data-herr="texto"><i>𝐀</i> Texto</a>
     <a href="#" data-herr="ritmo"><i>♫</i> Música</a>
@@ -112,6 +112,7 @@
       <button type="button" data-agregar="puerta">🚪 Caja en la puerta</button>
       <button type="button" data-agregar="explica">🪧 Tarjeta</button>
       <label style="margin-left:0">Look <select id="selLook"><option value="cine">Cine</option><option value="normal">Normal</option></select> <input id="colTono" type="color" value="#8b5cf6" title="Color de la luz"></label>
+      <label style="margin-left:0">Formato <select id="selFormato"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
       <label style="margin-left:0">Calidad <select id="selCalidad"><option value="1080">1080p</option><option value="4k">4K</option></select> <select id="selFps" title="Cuadros por segundo"><option value="30">30 fps</option><option value="60">60 fps (más fluido)</option></select></label>
       <button type="button" data-agregar="texto">🅰️ Texto</button>
       <button type="button" data-agregar="notificacion">🔔 Notificación</button>
@@ -146,7 +147,7 @@
           <div class="chips">
             <span class="chip-f">▮ 9:16 · 1080p</span>
             <select id="cDur" title="Duración"><option value="auto">Auto</option><option value="10">10 s</option><option value="15">15 s</option><option value="20">20 s</option><option value="30">30 s</option></select>
-            <select id="cFondo" title="Quitar el fondo de las prendas"><option value="si">Fondo negro: Sí</option><option value="no">Fondo negro: No</option></select>
+            <select id="cFondo" title="Quitar el fondo de las prendas"><option value="si">Fondo negro: Sí</option><option value="no" selected>Fondo negro: No</option></select>
             <select id="cRitmo" title="Música"><option value="si">Ritmo: Encendido</option><option value="no">Ritmo: Apagado</option></select>
             <button type="button" class="pri generar" id="bGenerar">Generar ✦</button>
           </div>
@@ -186,6 +187,7 @@
 <script src="studio-vistas.js"></script>
 <script src="studio-generar.js"></script>
 <script src="studio-tarjetas.js"></script>
+<script src="studio-mejora.js"></script>
 <script src="studio-recorte.js"></script>
 <script src="studio-creaciones.js"></script>
 <script src="studio-medios.js"></script>
@@ -193,6 +195,7 @@
 <script src="studio-carrusel.js"></script>
 <script src="studio-trabajos.js"></script>
 <script src="studio-pauta.js"></script>
+<script src="studio-plantilla-mapa.js"></script>
 <script src="studio-katana.js"></script>
 <script src="studio-ugc.js"></script>
 </body>

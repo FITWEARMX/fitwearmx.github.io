@@ -11,7 +11,7 @@ function pautaTexto(ini, dur, texto, extra) {
     fadeIn: 0, fadeOut: 0, entrada: 'nada', sonido: 'no', ...extra });
 }
 
-async function armarPauta(prendas, marca, fecha) {
+async function armarPauta(prendas, marca, fecha, titulo = 'BLACK FRIDAY') {
   const T = [];   // clips nuevos
   const nI = Math.min(PAUTA_INTRO, prendas.length), I = nI * PAUTA_PASO;
   // 1) prenda por prenda con su "Ordena con"
@@ -21,7 +21,7 @@ async function armarPauta(prendas, marca, fecha) {
       marcoY: 0, marcoAlto: 1920, nombre: '', precio: 0, envio: 90, x: 40, y: 500, w: 1000, h: 810, focoY: 0, fadeIn: 0, fadeOut: 0, sonido: 'whoosh' }));
     T.push(pautaTexto(t, PAUTA_PASO, 'Ordena con $' + anticipoDe(p.precio), { tam: 58, peso: 800, color: '#8f85ff', y: 1500 }));
   });
-  T.push(pautaTexto(0, I, 'BLACK FRIDAY', { tam: 134, peso: 900, color: '#f5f0f6', y: 290, entrada: 'golpe', italica: 'si', mx: 0, my: -67 }));
+  T.push(pautaTexto(0, I, titulo.toUpperCase(), { tam: 134, peso: 900, color: '#f5f0f6', y: 290, entrada: 'golpe', italica: 'si', mx: 0, my: -67 }));
   T.push(pautaTexto(0.1, I - 0.1, marca.toUpperCase(), { tam: 134, peso: 900, color: '#6a5efa', y: 420, entrada: 'golpe', italica: 'si', mx: 0, my: -44 }));
   T.push(pautaTexto(0.25, I - 0.25, 'Preventa · ' + fecha, { tam: 66, peso: 700, color: '#f5f0f6', y: 1352, sonido: 'brillo', mx: 0, my: 42 }));
   T.push(nuevoClip('destello', { ini: 0, dur: 0.18, color: '#8f85ff', fuerza: 0.3 }));
@@ -33,7 +33,7 @@ async function armarPauta(prendas, marca, fecha) {
   // 3) carrusel de precios
   const C = I + V, grupo = 'cinta-' + Date.now();
   P.clips = T;
-  const dur = armarCinta(prendas, C, grupo, 0, 0, { titulo: 'BLACK FRIDAY · ' + fecha.toUpperCase(), nota: '“Liquidas con” ya incluye envío en Monterrey' });
+  const dur = armarCinta(prendas, C, grupo, 0, 0, { titulo: titulo.toUpperCase() + ' · ' + fecha.toUpperCase(), nota: '“Liquidas con” ya incluye envío en Monterrey' });
   for (const c of P.clips) if (c.grupo === grupo && c.tipo === 'texto') Object.assign(c, c.tam === 62 ? { y: 165 } : { y: 246, tam: 30 });
   const subeEn = Math.max(...P.clips.filter(c => c.grupo === grupo && c.tipo === 'tarjeta').map(c => c.subeEn));
   const E = +(C + dur).toFixed(2);
@@ -68,11 +68,13 @@ async function armarPauta(prendas, marca, fecha) {
 }
 
 async function abrirPauta() {
-  const marca = prompt('¿Qué marca? (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
+  const titulo = prompt('Paso 1 de 3 · Letra grande de arriba (ej. BLACK FRIDAY, RESTOCK, DROP NUEVO)', 'BLACK FRIDAY');
+  if (!titulo) return;
+  const marca = prompt('Paso 2 de 3 · ¿Qué marca? Sale en morado abajo del título (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
   if (!marca) return;
-  const fecha = prompt('¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
+  const fecha = prompt('Paso 3 de 3 · ¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
   if (!fecha) return;
-  PAUTA.activa = { marca: marca.trim(), fecha: fecha.trim() };
+  PAUTA.activa = { titulo: titulo.trim(), marca: marca.trim(), fecha: fecha.trim() };
   await abrirCarrusel();
   $('carTitulo').textContent = 'Pauta ' + PAUTA.activa.marca + ': elige prendas (las primeras 9 salen una por una)';
   $('carHacer').textContent = 'Crear pauta con ' + CAR.marcados.size + ' prendas';
@@ -100,7 +102,7 @@ $('carHacer').onclick = async () => {
     }
     guardarHist();
     avisar('Armando la pauta…');
-    await armarPauta(prendas, PAUTA.activa.marca, PAUTA.activa.fecha);
+    await armarPauta(prendas, PAUTA.activa.marca, PAUTA.activa.fecha, PAUTA.activa.titulo);
     CAR.marcados.clear(); modalCar.hidden = true; PAUTA.activa = null; irA(0);
     $('aviso').textContent = '✅ Pauta lista en 4K 60 fps. Revisa precios y exporta.';
   } catch (e) { avisar('No se pudo: ' + e.message); }
@@ -119,3 +121,15 @@ window.pintarBotonesCarrusel = boton => {
   botonesCarruselNormal(boton);
 };
 pintarBarraMover();
+
+// Plantilla "Pauta Black Friday" (la que se pautó en Meta el 6-nov) arriba en Plantillas y en Inicio.
+function tarjetaPauta() {
+  const d = document.createElement('button');
+  d.type = 'button'; d.className = 'tarjeta';
+  d.innerHTML = '<div class="poster" style="background-image:url(pauta-bf.jpg)"></div><div class="info"><b>Pauta Black Friday ★</b>'
+    + '<span>La que pautamos. Pones título, marca y fecha, eliges prendas y sale igual: prenda por prenda, pedidos reales, precios, formas de pago y logo. 4K 60 fps.</span></div>';
+  d.onclick = () => { verVista('editor'); abrirPauta(); };
+  return d;
+}
+$('rejillaPlantillas').prepend(tarjetaPauta());
+$('atajos').prepend(tarjetaPauta());

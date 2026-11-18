@@ -59,7 +59,7 @@ function deshacer() { if (!hist.length) return; P = JSON.parse(hist.pop()); if (
 let tGuardar = 0;
 function autoguardar() {
   clearTimeout(tGuardar);
-  tGuardar = setTimeout(() => { try { localStorage.setItem('comercial-proyecto', JSON.stringify(P)); } catch (e) {} }, 400);
+  tGuardar = setTimeout(() => { try { localStorage.setItem(CLAVE_PROYECTO, JSON.stringify(P)); } catch (e) {} }, 400);
 }
 function cargar(obj) {
   P = { clips: [], ocultas: [], mudas: [], ...obj };

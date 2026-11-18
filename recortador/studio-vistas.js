@@ -27,11 +27,13 @@ document.querySelectorAll('[data-herr]').forEach(b => b.addEventListener('click'
 const MODOS = {
   comprar: { nombre: 'Cómo comprar', icono: '▶', fondo: '#17111f', desc: 'Prendas en negro, la compra paso a paso dentro del iPhone y el pedido por WhatsApp.' },
   drop: { nombre: 'Drop nuevo', icono: '✦', fondo: '#0f1424', desc: 'Tus prendas una por una con su nombre y "Ordena con $".' },
-  negro: { nombre: 'Prenda en negro', icono: '■', fondo: '#121212', desc: 'Una sola prenda protagonista, estilo Breathe Divinity.' },
+  // oculta: la sombra negra no le gustó al dueño (nov-2026); se queda el código por si acaso.
+  negro: { nombre: 'Prenda en negro', icono: '■', fondo: '#121212', desc: 'Una sola prenda protagonista, estilo Breathe Divinity.', oculta: true },
   remate: { nombre: 'Remate', icono: '🔥', fondo: '#1f0d0d', desc: 'Urgencia: "Remate.", tus prendas y sus precios.' },
 };
 let modo = 'comprar';
 function elegirModo(m) {
+  if (!MODOS[m] || MODOS[m].oculta) m = 'drop';
   modo = m;
   document.querySelectorAll('#modos button').forEach(b => b.classList.toggle('on', b.dataset.modo === m));
 }
@@ -44,6 +46,7 @@ function tarjetaModo(k) {
   return d;
 }
 for (const k in MODOS) {
+  if (MODOS[k].oculta) continue;
   const b = document.createElement('button');
   b.type = 'button'; b.dataset.modo = k; b.textContent = MODOS[k].icono + ' ' + MODOS[k].nombre;
   b.onclick = () => elegirModo(k);

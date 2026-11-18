@@ -4,8 +4,8 @@
 // ---------- mis creaciones (se guardan en este aparato) ----------
 let posterExp = null;
 function miniatura() {
-  const m = document.createElement('canvas'); m.width = 270; m.height = 480;
-  m.getContext('2d').drawImage(lienzo, 0, 0, 270, 480);
+  const m = document.createElement('canvas'); m.width = W / 4; m.height = H / 4;
+  m.getContext('2d').drawImage(lienzo, 0, 0, W / 4, H / 4);
   return m.toDataURL('image/jpeg', 0.7);
 }
 function abrirDB() {
@@ -53,6 +53,6 @@ async function pintarCreaciones() {
 
 // arranque
 try {
-  const guardado = JSON.parse(localStorage.getItem('comercial-proyecto') || 'null');
+  const guardado = JSON.parse(localStorage.getItem(CLAVE_PROYECTO) || 'null');
   if (guardado && guardado.clips && guardado.clips.length) cargar(guardado); else cargar(plantilla());
 } catch (e) { cargar(plantilla()); }

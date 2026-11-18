@@ -19,7 +19,8 @@ async function cuadroListo(t) {
     const el = elemDe(c);
     if (!el.paused) el.pause();
     if (el.readyState < 1) esperas.push(esperarEvento(el, 'loadedmetadata'));
-    const obj = Math.min((c.desde || 0) + (t - c.ini), (isFinite(el.duration) ? el.duration : 1e9) - 0.04);
+    // +2 ms: si se pide justo el borde del cuadro, el navegador a veces enseña el anterior (cuadros repetidos)
+    const obj = Math.min((c.desde || 0) + (t - c.ini) + 0.002, (isFinite(el.duration) ? el.duration : 1e9) - 0.04);
     if (Math.abs(el.currentTime - obj) > 0.001 || el.readyState < 2) {
       esperas.push(new Promise(res => {
         const listo = () => { el.removeEventListener('seeked', listo); res(); };
@@ -57,7 +58,12 @@ async function mezclarAudio(dur, sr) {
     src.start(c.ini, c.desde || 0, c.dur);
   }
   for (const c of P.clips) for (const [t0, tipo] of golpesDe(c)) if (t0 < dur) efecto(oc, oc.destination, tipo, t0, c.volSonido ?? 0.7);
-  return oc.startRendering();
+  const hecho = await oc.startRendering();
+  // Si la suma se pasa de 1 el audio truena: se baja parejo hasta que quepa.
+  let pico = 0;
+  for (let k = 0; k < hecho.numberOfChannels; k++) for (const v of hecho.getChannelData(k)) { const a = Math.abs(v); if (a > pico) pico = a; }
+  if (pico > 0.98) for (let k = 0; k < hecho.numberOfChannels; k++) { const d = hecho.getChannelData(k), f = 0.98 / pico; for (let i = 0; i < d.length; i++) d[i] *= f; }
+  return hecho;
 }
 async function exportarCuadros() {
   const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');

@@ -2,8 +2,11 @@
 // Se carga en orden desde comercial.html; comparte variables y funciones con los demás studio-*.js.
 
 const $ = id => document.getElementById(id);
-const W = 1080, H = 1920;
+const HORIZONTAL = new URLSearchParams(location.search).get('formato') === 'horizontal';   // ?formato=horizontal: 16:9
+const W = HORIZONTAL ? 1920 : 1080, H = HORIZONTAL ? 1080 : 1920;
+const CLAVE_PROYECTO = HORIZONTAL ? 'comercial-proyecto-horizontal' : 'comercial-proyecto';
 const lienzo = $('lienzo'), ctx = lienzo.getContext('2d');
+if (HORIZONTAL) { lienzo.width = W; lienzo.height = H; lienzo.style.aspectRatio = '16 / 9'; }
 const FUENTE = '-apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const ALTO = 46;
 
@@ -69,7 +72,7 @@ const TIPOS = {
     def: { texto: 'Pedir por WhatsApp', textoFin: 'Pedido enviado ✓', color: '#25D366', y: 1640 },
     campos: [['texto', 'Texto', 'texto'], ['textoFin', 'Al final dice', 'texto'], ['color', 'Color', 'color'], ['y', 'Altura', 'rango', 100, 1800, 1]] },
   mapa: { nombre: 'Mapa con ruta', icono: '🗺', pista: 'V2', dur: 3.5,
-    def: { origen: 'USA 🇺🇸', destino: 'Monterrey 🇲🇽', color: '#fbbf24', titulo: 'Llega en 2 a 3 semanas', sub: 'En camino a Monterrey',
+    def: { origen: 'USA 🇺🇸', destino: 'Monterrey 🇲🇽', color: '#a855f7', titulo: 'Llega en 2 a 3 semanas', sub: 'En camino a Monterrey',
       pasos: 'Ordenado,En USA,En camino,Entregado', fadeIn: 0.2, fadeOut: 0.2 },
     campos: [['origen', 'Sale de', 'texto'], ['destino', 'Llega a', 'texto'], ['color', 'Color de la ruta', 'color'],
       ['titulo', 'Tarjeta: título', 'texto'], ['sub', 'Tarjeta: abajo', 'texto'], ['pasos', 'Pasos (con comas)', 'texto'], ...FADES] },
