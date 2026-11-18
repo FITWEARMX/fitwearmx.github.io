@@ -42,8 +42,11 @@ async function leerPrendasCarrusel() {
   if (CAR.lista.length) return;
   $('carEstado').textContent = 'Cargando tus prendas…';
   await cargarTienda();
-  const publicas = tienda.productos.map(p => ({ id: p.id, nombre: p.nombre, marca: p.marca, coleccion: p.coleccion || '', creado: p.creado || 0, precio: p.precio, fotos: p.colores.flatMap(c => c.fotos) }));
-  const clave = p => (p.marca + '|' + p.nombre).toLowerCase();
+  // cada color sale aparte (con sus fotos y su precio), para elegir el diseño exacto
+  const publicas = tienda.productos.flatMap(p => p.colores.filter(c => c.fotos && c.fotos.length).map((c, i) => ({
+    id: p.id + '|' + (c.k || i), nombre: p.colores.length > 1 && c.nombre ? p.nombre + ' · ' + c.nombre : p.nombre, marca: p.marca, coleccion: p.coleccion || '',
+    creado: p.creado || 0, precio: c.precio || p.precio, fotos: c.fotos, base: p.marca + '|' + p.nombre })));
+  const clave = p => (p.base || p.marca + '|' + p.nombre).toLowerCase();
   const vistos = new Set(publicas.map(clave));
   CAR.lista = [...publicas, ...(await leerCatalogoAparato()).filter(p => !vistos.has(clave(p)))];
   $('carMarca').innerHTML = '<option value="">Todas las marcas</option>' + [...new Set(CAR.lista.map(p => p.marca))].sort().map(m => `<option>${m}</option>`).join('');
@@ -55,7 +58,7 @@ function pintarCarrusel() {
   // busca por nombre o colección (ej. "preview" = Preview Black Friday); lo más nuevo arriba
   const lista = CAR.lista.filter(p => (!m || p.marca === m) && (!q || (p.nombre + ' ' + (p.coleccion || '')).toLowerCase().includes(q)))
     .sort((a, b) => (b.creado || 0) - (a.creado || 0));
-  for (const p of lista.slice(0, 400)) {
+  for (const p of lista.slice(0, 1000)) {
     const elegida = CAR.marcados.get(p.id), d = document.createElement('div');
     d.style.cssText = `cursor:pointer;border-radius:12px;padding:6px;background:var(--bg);border:2px solid ${elegida ? '#6a5efa' : 'var(--border)'}`;
     const img = document.createElement('img'); img.loading = 'lazy'; img.src = urlFoto(p.fotos[(elegida && elegida.foto) || 0]); img.style.cssText = 'width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;display:block';
