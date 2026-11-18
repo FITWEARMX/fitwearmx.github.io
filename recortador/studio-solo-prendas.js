@@ -2,7 +2,7 @@
 // pero puras prendas: cada una grande, sin fondo, sobre el morado, con su nombre, "Ordena con $X" y "Liquidas con $Y".
 // Tú eliges las prendas en el elegidor; usa armado de studio-pauta.js (título, marca, fecha).
 
-const SOLO_PASO = 1.3;   // segundos por prenda, para que alcancen a leer los precios
+const SOLO_PASO = 0.5;   // segundos por prenda (el dueño la quiere rápida: 0.5, 18-nov)
 
 async function armarSoloPrendas(prendas, marca, fecha, titulo = 'BLACK FRIDAY') {
   const T = [], F = +(prendas.length * SOLO_PASO).toFixed(2), din = x => '$' + x.toLocaleString('es-MX');
@@ -13,7 +13,7 @@ async function armarSoloPrendas(prendas, marca, fecha, titulo = 'BLACK FRIDAY') 
     T.push(pautaTexto(t, SOLO_PASO, p.nombre.toUpperCase(), { tam: 40, peso: 700, color: '#b9b4d6', y: 1470 }));
     T.push(pautaTexto(t, SOLO_PASO, 'Ordena con ' + din(m.ordena), { tam: 84, peso: 900, color: '#f5f0f6', y: 1580, italica: 'si' }));
     T.push(pautaTexto(t, SOLO_PASO, 'Liquidas con ' + din(m.liquida), { tam: 54, peso: 700, color: '#8f85ff', y: 1675 }));
-    if (i) T.push(nuevoClip('transicion', { ini: t, dur: 0.3, crece: 0.1 }));
+    if (i) T.push(nuevoClip('transicion', { ini: t, dur: 0.18, crece: 0.08 }));
   });
   T.push(pautaTexto(0, F, titulo.toUpperCase(), { tam: 134, peso: 900, color: '#f5f0f6', y: 290, entrada: 'golpe', italica: 'si', mx: 0, my: -67 }));
   T.push(pautaTexto(0.1, F - 0.1, marca.toUpperCase(), { tam: 134, peso: 900, color: '#6a5efa', y: 420, entrada: 'golpe', italica: 'si', mx: 0, my: -44 }));
