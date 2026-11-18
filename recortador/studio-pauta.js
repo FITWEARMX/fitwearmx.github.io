@@ -4,6 +4,7 @@
 // Usa las funciones que ya existen (quitar fondo, armarCinta, ritmo). No guarda fotos ni precios en la página.
 
 const PAUTA = { activa: null };
+const PAUTA_ARMADORES = {};   // otras plantillas se registran aquí (ej. studio-plantilla-pared.js)
 const PAUTA_INTRO = 9, PAUTA_PASO = 0.5;
 
 function pautaTexto(ini, dur, texto, extra) {
@@ -68,17 +69,18 @@ async function armarPauta(prendas, marca, fecha, titulo = 'BLACK FRIDAY') {
 }
 
 async function abrirPauta(modo = 'pauta') {
-  const titulo = prompt((modo === 'solo' ? 'Paso 1 de 2' : 'Paso 1 de 3') + ' · Letra grande de arriba (ej. BLACK FRIDAY, RESTOCK, DROP NUEVO)', 'BLACK FRIDAY');
+  const titulo = prompt((modo !== 'pauta' ? 'Paso 1 de 2' : 'Paso 1 de 3') + ' · Letra grande de arriba (ej. BLACK FRIDAY, RESTOCK, DROP NUEVO)', 'BLACK FRIDAY');
   if (!titulo) return;
-  const marca = prompt((modo === 'solo' ? 'Paso 2 de 2' : 'Paso 2 de 3') + ' · ¿Qué marca? Sale en morado abajo del título (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
+  const marca = modo === 'pared' ? prompt('Paso 2 de 2 · Letrero chiquito de arriba (ej. YOUNGLA · PREVIEW, GYMSHARK · BLACK FRIDAY)', 'YOUNGLA · PREVIEW')
+    : prompt((modo === 'solo' ? 'Paso 2 de 2' : 'Paso 2 de 3') + ' · ¿Qué marca? Sale en morado abajo del título (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
   if (!marca) return;
   // "Solo prendas" no lleva fecha (va en la descripción del post)
-  const fecha = modo === 'solo' ? '-' : prompt('Paso 3 de 3 · ¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
+  const fecha = modo !== 'pauta' ? '-' : prompt('Paso 3 de 3 · ¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
   if (!fecha) return;
   PAUTA.activa = { modo, titulo: titulo.trim(), marca: marca.trim(), fecha: fecha.trim() };
   await abrirCarrusel();
-  $('carTitulo').textContent = modo === 'solo' ? PAUTA.activa.marca + ': toca las prendas que quieras (salen todas, una por una)' : 'Pauta ' + PAUTA.activa.marca + ': elige prendas (las primeras 9 salen una por una)';
-  $('carHacer').textContent = (PAUTA.activa.modo === 'solo' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas';
+  $('carTitulo').textContent = modo !== 'pauta' ? PAUTA.activa.marca + ': toca las prendas que quieras (salen todas, una por una)' : 'Pauta ' + PAUTA.activa.marca + ': elige prendas (las primeras 9 salen una por una)';
+  $('carHacer').textContent = (PAUTA.activa.modo !== 'pauta' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas';
 }
 
 // El botón "Crear" del elegidor hace la pauta completa cuando viene de "Pauta completa"; si no, hace el carrusel de siempre.
@@ -103,8 +105,8 @@ $('carHacer').onclick = async () => {
     }
     guardarHist();
     avisar('Armando la pauta…');
-    await (PAUTA.activa.modo === 'solo' ? armarSoloPrendas : armarPauta)(prendas, PAUTA.activa.marca, PAUTA.activa.fecha, PAUTA.activa.titulo);
-    const eraSolo = PAUTA.activa.modo === 'solo';
+    await (PAUTA_ARMADORES[PAUTA.activa.modo] || (PAUTA.activa.modo === 'solo' ? armarSoloPrendas : armarPauta))(prendas, PAUTA.activa.marca, PAUTA.activa.fecha, PAUTA.activa.titulo);
+    const eraSolo = PAUTA.activa.modo !== 'pauta';
     CAR.marcados.clear(); modalCar.hidden = true; PAUTA.activa = null; irA(0);
     $('aviso').textContent = eraSolo ? '✅ Video de prendas listo en 4K 60 fps. Revisa precios y exporta.' : '✅ Pauta lista en 4K 60 fps. Revisa precios y exporta.';
   } catch (e) { avisar('No se pudo: ' + e.message); }
@@ -113,7 +115,7 @@ $('carHacer').onclick = async () => {
 $('carCerrar').addEventListener('click', () => PAUTA.activa = null);
 // mientras eliges, el botón dice "Crear pauta"
 const pintarCarruselNormal = pintarCarrusel;
-pintarCarrusel = function () { pintarCarruselNormal(); if (PAUTA.activa) $('carHacer').textContent = (PAUTA.activa.modo === 'solo' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas'; };
+pintarCarrusel = function () { pintarCarruselNormal(); if (PAUTA.activa) $('carHacer').textContent = (PAUTA.activa.modo !== 'pauta' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas'; };
 $('carBusca').oninput = pintarCarrusel;
 $('carMarca').onchange = pintarCarrusel;
 
