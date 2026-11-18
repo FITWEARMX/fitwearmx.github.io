@@ -10,7 +10,7 @@ modalCar.className = 'modal'; modalCar.hidden = true;
 modalCar.innerHTML = `<div class="modal-caja">
   <div class="modal-top">
     <b id="carTitulo">Elige tus prendas</b>
-    <input id="carBusca" type="search" placeholder="Buscar: Batman, One Piece…">
+    <input id="carBusca" type="search" placeholder="Buscar: preview, Batman, One Piece…">
     <select id="carMarca"></select>
     <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="carFondo" checked style="flex:none;min-width:0"> Quitar fondo</label>
     <button type="button" id="carCerrar">Cerrar</button>
@@ -42,7 +42,7 @@ async function leerPrendasCarrusel() {
   if (CAR.lista.length) return;
   $('carEstado').textContent = 'Cargando tus prendas…';
   await cargarTienda();
-  const publicas = tienda.productos.map(p => ({ id: p.id, nombre: p.nombre, marca: p.marca, precio: p.precio, fotos: p.colores.flatMap(c => c.fotos) }));
+  const publicas = tienda.productos.map(p => ({ id: p.id, nombre: p.nombre, marca: p.marca, coleccion: p.coleccion || '', creado: p.creado || 0, precio: p.precio, fotos: p.colores.flatMap(c => c.fotos) }));
   const clave = p => (p.marca + '|' + p.nombre).toLowerCase();
   const vistos = new Set(publicas.map(clave));
   CAR.lista = [...publicas, ...(await leerCatalogoAparato()).filter(p => !vistos.has(clave(p)))];
@@ -52,8 +52,10 @@ async function leerPrendasCarrusel() {
 function pintarCarrusel() {
   const q = $('carBusca').value.trim().toLowerCase(), m = $('carMarca').value, caja = $('carRejilla');
   caja.textContent = '';
-  const lista = CAR.lista.filter(p => (!m || p.marca === m) && (!q || p.nombre.toLowerCase().includes(q)));
-  for (const p of lista.slice(0, 120)) {
+  // busca por nombre o colección (ej. "preview" = Preview Black Friday); lo más nuevo arriba
+  const lista = CAR.lista.filter(p => (!m || p.marca === m) && (!q || (p.nombre + ' ' + (p.coleccion || '')).toLowerCase().includes(q)))
+    .sort((a, b) => (b.creado || 0) - (a.creado || 0));
+  for (const p of lista.slice(0, 400)) {
     const elegida = CAR.marcados.get(p.id), d = document.createElement('div');
     d.style.cssText = `cursor:pointer;border-radius:12px;padding:6px;background:var(--bg);border:2px solid ${elegida ? '#6a5efa' : 'var(--border)'}`;
     const img = document.createElement('img'); img.loading = 'lazy'; img.src = urlFoto(p.fotos[(elegida && elegida.foto) || 0]); img.style.cssText = 'width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;display:block';

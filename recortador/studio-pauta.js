@@ -67,17 +67,18 @@ async function armarPauta(prendas, marca, fecha, titulo = 'BLACK FRIDAY') {
   cambio();
 }
 
-async function abrirPauta() {
-  const titulo = prompt('Paso 1 de 3 · Letra grande de arriba (ej. BLACK FRIDAY, RESTOCK, DROP NUEVO)', 'BLACK FRIDAY');
+async function abrirPauta(modo = 'pauta') {
+  const titulo = prompt((modo === 'solo' ? 'Paso 1 de 2' : 'Paso 1 de 3') + ' · Letra grande de arriba (ej. BLACK FRIDAY, RESTOCK, DROP NUEVO)', 'BLACK FRIDAY');
   if (!titulo) return;
-  const marca = prompt('Paso 2 de 3 · ¿Qué marca? Sale en morado abajo del título (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
+  const marca = prompt((modo === 'solo' ? 'Paso 2 de 2' : 'Paso 2 de 3') + ' · ¿Qué marca? Sale en morado abajo del título (ej. YoungLA, Gymshark, Breathe Divinity)', 'YoungLA');
   if (!marca) return;
-  const fecha = prompt('Paso 3 de 3 · ¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
+  // "Solo prendas" no lleva fecha (va en la descripción del post)
+  const fecha = modo === 'solo' ? '-' : prompt('Paso 3 de 3 · ¿Qué fecha va en "Preventa · …"? (ej. 24 de nov)', '24 de nov');
   if (!fecha) return;
-  PAUTA.activa = { titulo: titulo.trim(), marca: marca.trim(), fecha: fecha.trim() };
+  PAUTA.activa = { modo, titulo: titulo.trim(), marca: marca.trim(), fecha: fecha.trim() };
   await abrirCarrusel();
-  $('carTitulo').textContent = 'Pauta ' + PAUTA.activa.marca + ': elige prendas (las primeras 9 salen una por una)';
-  $('carHacer').textContent = 'Crear pauta con ' + CAR.marcados.size + ' prendas';
+  $('carTitulo').textContent = modo === 'solo' ? PAUTA.activa.marca + ': toca las prendas que quieras (salen todas, una por una)' : 'Pauta ' + PAUTA.activa.marca + ': elige prendas (las primeras 9 salen una por una)';
+  $('carHacer').textContent = (PAUTA.activa.modo === 'solo' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas';
 }
 
 // El botón "Crear" del elegidor hace la pauta completa cuando viene de "Pauta completa"; si no, hace el carrusel de siempre.
@@ -102,16 +103,17 @@ $('carHacer').onclick = async () => {
     }
     guardarHist();
     avisar('Armando la pauta…');
-    await armarPauta(prendas, PAUTA.activa.marca, PAUTA.activa.fecha, PAUTA.activa.titulo);
+    await (PAUTA.activa.modo === 'solo' ? armarSoloPrendas : armarPauta)(prendas, PAUTA.activa.marca, PAUTA.activa.fecha, PAUTA.activa.titulo);
+    const eraSolo = PAUTA.activa.modo === 'solo';
     CAR.marcados.clear(); modalCar.hidden = true; PAUTA.activa = null; irA(0);
-    $('aviso').textContent = '✅ Pauta lista en 4K 60 fps. Revisa precios y exporta.';
+    $('aviso').textContent = eraSolo ? '✅ Video de prendas listo en 4K 60 fps. Revisa precios y exporta.' : '✅ Pauta lista en 4K 60 fps. Revisa precios y exporta.';
   } catch (e) { avisar('No se pudo: ' + e.message); }
   boton.disabled = false;
 };
 $('carCerrar').addEventListener('click', () => PAUTA.activa = null);
 // mientras eliges, el botón dice "Crear pauta"
 const pintarCarruselNormal = pintarCarrusel;
-pintarCarrusel = function () { pintarCarruselNormal(); if (PAUTA.activa) $('carHacer').textContent = 'Crear pauta con ' + CAR.marcados.size + ' prendas'; };
+pintarCarrusel = function () { pintarCarruselNormal(); if (PAUTA.activa) $('carHacer').textContent = (PAUTA.activa.modo === 'solo' ? 'Crear video con ' : 'Crear pauta con ') + CAR.marcados.size + ' prendas'; };
 $('carBusca').oninput = pintarCarrusel;
 $('carMarca').onchange = pintarCarrusel;
 
